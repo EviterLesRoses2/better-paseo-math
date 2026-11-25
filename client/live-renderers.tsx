@@ -539,6 +539,7 @@ function AssistantBlockRenderer({ item, theme, layout, agentId, timestamp }: Plu
     <PreferenceSyncSlot />
     <MarkdownView text={item.data.text} tokens={tokens} variant={preferences.markdownVariant}
       compact={layout.compact} firstBlock={item.data.blockIndex === 0} onRevealPath={onRevealPath}
+      renderMath
       listContinuation={item.data.listContinuation}
       probeId={`assistant:${timestamp.getTime()}:${item.data.blockIndex}`} />
     <DetailsHostSlot agentId={agentId} itemKey={hostSlotKey} tokens={tokens} compact={layout.compact} />
@@ -628,6 +629,7 @@ function LiveAssistantMessageRenderer({
           variant={preferences.markdownVariant}
           compact={layout.compact}
           streaming={streaming}
+          renderMath
           onRevealPath={handleRevealPath}
           probeId={`assistant:${timestamp.getTime()}`}
         />

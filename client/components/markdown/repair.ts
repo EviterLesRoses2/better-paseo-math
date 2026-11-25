@@ -22,6 +22,7 @@
  * `comparisonOperators`, which would rewrite what the author wrote.
  */
 import remend, { isWithinCodeBlock, type RemendHandler } from "remend";
+import { protectMathTablePipes } from "./inline-math-token";
 
 // Digits alone are held too: `1` is a paragraph, `1.` an empty item and `1. x`
 // a list, so a reveal that jumps from `1` past the held `1.` would draw a
@@ -98,14 +99,14 @@ const tableHeader: RemendHandler = {
 
     // A header row on its own: give it the delimiter it is about to get.
     if (!ROW_RE.test(previous)) {
-      const width = rowCells(line).length;
+      const width = rowCells(protectMathTablePipes(line)).length;
       if (width === 0) return input;
       return `${text}\n${delimiterFor(width)}`;
     }
 
     // Header plus a delimiter still being typed: finish the delimiter.
     if (DELIMITER_RE.test(line) && !ROW_RE.test(lineTwoBack)) {
-      const width = rowCells(previous).length;
+      const width = rowCells(protectMathTablePipes(previous)).length;
       if (width === 0) return input;
       return `${text.slice(0, start)}${delimiterFor(width, rowCells(line))}`;
     }

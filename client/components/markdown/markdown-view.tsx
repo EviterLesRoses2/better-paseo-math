@@ -39,6 +39,8 @@ export interface MarkdownViewProps {
    * and its open code fence is not sent for highlighting yet.
    */
   streaming?: boolean;
+  /** Typeset LaTeX in settled assistant replies. */
+  renderMath?: boolean;
   /** Compact only: fenced code starts folded to a one-line summary. */
   collapseCode?: boolean;
   /** `layout.compact`: the touch layout's wider block gap. */
@@ -89,6 +91,7 @@ export function MarkdownView({
   tokens: given,
   variant,
   streaming = false,
+  renderMath = false,
   collapseCode = false,
   compact = false,
   quiet = false,
@@ -144,6 +147,7 @@ export function MarkdownView({
   // iOS only: elsewhere prose is the same `Text` either way, and the context
   // must stay put when the reply settles so finished blocks are not redrawn.
   const plainProse = Platform.OS === "ios" && (streaming || renderText !== undefined);
+  const displayMath = renderMath && !streaming;
   const context = useMemo<RenderContext>(
     () => ({
       styles,
@@ -152,10 +156,12 @@ export function MarkdownView({
       variant,
       collapseCode,
       plainProse,
+      displayMath,
+      inlineMath: renderMath,
       onRevealPath,
       renderText,
     }),
-    [styles, tokens, metrics, variant, collapseCode, plainProse, onRevealPath, renderText],
+    [styles, tokens, metrics, variant, collapseCode, plainProse, displayMath, renderMath, onRevealPath, renderText],
   );
 
   // A streamed chunk changes the tail and leaves every block before it as it

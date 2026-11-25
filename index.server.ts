@@ -5,10 +5,7 @@ import type { PluginServerContext } from "@getpaseo/plugin/server";
 import { updateCheckRpc } from "./shared/update-check";
 import { agentUpdatesRpc } from "./shared/agent-updates";
 import { createAgentUpdateCheck } from "./server/agent-updates";
-import { openTerminalRpc, updateCommand } from "./shared/open-terminal";
-import { createUpdateCheck, startAutomaticUpdateCheck } from "./server/update-check";
-import { pluginDataDir } from "./server/plugin-data";
-import { openSystemTerminal } from "./server/open-terminal";
+import { openTerminalRpc } from "./shared/open-terminal";
 import { PREFERENCES_SETTINGS, type FileOpenApp } from "./shared/preferences-settings";
 import { installedEditorsRpc, revealPathRpc, type FileOpenErrorKind } from "./shared/file-rpc";
 import { embeddedFontsRpc } from "./shared/font-rpc";
@@ -17,6 +14,8 @@ import { imageRpc } from "./shared/image-rpc";
 import { markBitmapsRpc } from "./shared/mark-rpc";
 import { isNetworkOrDevicePath } from "./shared/network-path";
 import { perfDumpRpc } from "./shared/perf-rpc";
+import { renderMath, type RenderOutput } from "./shared/math-rpc";
+import type { createMathRenderer } from "./server/math/render";
 import { EMBEDDED_FONTS } from "./server/font-data";
 import { MARK_BITMAPS } from "./server/mark-bitmaps";
 import { writePerfDump } from "./server/perf-dump";
@@ -468,19 +467,28 @@ function tokenize(
 }
 
 export default function contribute(server: PluginServerContext) {
+  let mathRenderer: Promise<ReturnType<typeof createMathRenderer>> | undefined;
+  server.handle(renderMath, async (input): Promise<RenderOutput> => {
+    try {
+      mathRenderer ??= import("./server/math/render").then(({ createMathRenderer }) => createMathRenderer());
+      return await (await mathRenderer).render(input);
+    } catch {
+      mathRenderer = undefined;
+      return { ok: false, code: "renderer-unavailable", reason: "Local formula rendering failed" };
+    }
+  });
   // Presentation preferences live in the daemon (host scope), so every
   // client — including iOS and Android, which have no localStorage — reads
   // and saves the same record (S5 fix round 1).
   const preferences = server.registerSettings(PREFERENCES_SETTINGS);
-  const checkUpdate = createUpdateCheck(undefined, join(pluginDataDir(), "update-check.json"));
-  const stopAutomaticUpdateCheck = startAutomaticUpdateCheck(preferences, checkUpdate);
-  server.handle(updateCheckRpc, ({ action }) => checkUpdate(action));
+  // Updates follow the installed source through Paseo.
+  server.handle(updateCheckRpc, () => ({ state: "unsupported" } as const));
   const checkAgents = createAgentUpdateCheck();
   server.handle(agentUpdatesRpc, async ({ action }, { paseo }) => {
     const settings = await preferences.read();
     return checkAgents(action, paseo, settings.status === "ready" && settings.values.autoUpdateCheck);
   });
-  server.handle(openTerminalRpc, () => openSystemTerminal(updateCommand()));
+  server.handle(openTerminalRpc, () => ({ status: "unsupported" } as const));
   // The Tasks board's settings and its stop RPCs.
   registerTasksServer(server);
   // Each turn's token usage, kept on disk for the turn details.
@@ -625,5 +633,8 @@ export default function contribute(server: PluginServerContext) {
 
   // The highlighter and the cache sit at module scope on purpose, shared by
   // every contribution, so a single teardown must not dispose them.
-  return () => { stopAutomaticUpdateCheck(); };
+  return async () => {
+    const renderer = await mathRenderer?.catch(() => undefined);
+    renderer?.dispose();
+  };
 }

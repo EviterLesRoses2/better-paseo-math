@@ -150,8 +150,8 @@ function fragments(children: ReactNode, run: Run): ReactNode[] {
  * Inline runs inside it must be `ProseSpan`s: on iOS a plain `Text` nested in
  * the native root is not part of its text and does not draw.
  */
-export function ProseText({ style, children, ...rest }: TextProps) {
-  const native = nativeProse();
+export function ProseText({ style, children, inlineAttachments, ...rest }: TextProps & { inlineAttachments?: boolean }) {
+  const native = !inlineAttachments && nativeProse();
   const run = useMemo<Run>(() => ({ style: fragmentStyle(null, style) }), [style]);
   // UITextView starts on the system background, black in dark mode, and the
   // root only repaints when its fill prop changes: give it one, as

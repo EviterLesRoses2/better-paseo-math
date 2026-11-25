@@ -3,6 +3,7 @@ import { Platform, ScrollView, StyleSheet, Text, View, type TextStyle, type View
 import type { Tokens } from "../../../vendor/marked";
 import type { RenderContext } from "./context";
 import { inlineWidth, renderInline } from "./inline";
+import { hasInlineMath } from "../inline-math-token";
 import { nextReuse, reuseNode, type NodeReuse } from "./reuse";
 import { contentTextProps, contentTextStyle } from "../../../ui/content-text";
 import { TableCopyMenu } from "./table-copy-menu";
@@ -150,6 +151,11 @@ export function MdTable({
     <View key={key} ref={(node) => { rowRefs.current[row] = node; }} style={[rowStyle, row > 0 && row % 2 === 0 && styles.tableRowAlternate, last && styles.tableRowLast]}>
       {cells.map((cell, column) => {
         const cellKey = `${cellPrefix}${column}`;
+        const cellContext = context.displayMath && hasInlineMath(cell.tokens) ? {
+          ...context,
+          mathFontSize: metrics.cellSize,
+          mathMaxWidth: Math.max(1, (widths[column] ?? metrics.columnMin) - TABLE_CELL_PADDING * 2 - TABLE_DIVIDER_WIDTH),
+        } : context;
         // One Text per cell: on iOS and Android the frame takes the touches
         // and finds the cell from its rows and column starts.
         return (
@@ -169,7 +175,7 @@ export function MdTable({
               rangeHas(ranges, row, column) && { backgroundColor: context.tokens.selectionFill },
             ]}
           >
-            {renderInline(cell.tokens, context, cellKey)}
+            {renderInline(cell.tokens, cellContext, cellKey)}
           </Text>
         );
       })}

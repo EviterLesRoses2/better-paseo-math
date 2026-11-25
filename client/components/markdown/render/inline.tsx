@@ -10,6 +10,8 @@ import { decodeEntities, isPathLike, softBreaks } from "./text";
 import { localPath } from "./local-path";
 import { LocalLink } from "./local-link";
 import { ProseSpan } from "../../../ui/prose-text";
+import type { InlineMathToken } from "../inline-math-token";
+import { InlineMath } from "./inline-math";
 
 /** The visible text of an inline run, for measuring and summaries. */
 export function inlineText(tokens: readonly Token[] | undefined): string {
@@ -75,6 +77,11 @@ export function renderInline(
         return;
       case "br":
         out.push("\n");
+        return;
+      case "mathInline":
+        out.push(context.displayMath
+          ? <InlineMath key={key} token={token as InlineMathToken} context={context} />
+          : token.raw);
         return;
       case "html":
         // HTML is shown as the source the author wrote, never interpreted.

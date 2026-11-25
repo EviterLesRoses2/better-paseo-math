@@ -20,6 +20,10 @@ export interface RenderContext {
    * list notifies all of them (see `prose.tsx`). Settled prose goes native.
    */
   plainProse?: boolean;
+  displayMath?: boolean;
+  inlineMath?: boolean;
+  mathFontSize?: number;
+  mathMaxWidth?: number;
   /** Press on a path in the prose; absent: `PathText` falls back to its context. */
   onRevealPath?: (path: string) => void;
 }

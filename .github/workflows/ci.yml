@@ -60,6 +60,9 @@ jobs:
       - name: Install dependencies
         run: node scripts/npm-retry.mjs ci
 
+      - name: Prepare math renderer
+        run: npm run prepare:math
+
       - name: Typecheck
         run: npm run typecheck
 
@@ -79,6 +82,9 @@ jobs:
 
       - name: Install dependencies
         run: node scripts/npm-retry.mjs ci
+
+      - name: Prepare math renderer
+        run: npm run prepare:math
 
       # vitest.config.ts allows 30 s per case. The long-fixture sweeps override
       # that, up to 180 s. The suite is several minutes on a GitHub runner.
@@ -102,6 +108,9 @@ jobs:
 
       - name: Install dependencies
         run: node scripts/npm-retry.mjs ci
+
+      - name: Prepare math renderer
+        run: npm run prepare:math
 
       - name: Build client
         run: npm run build:client

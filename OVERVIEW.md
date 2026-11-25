@@ -1,13 +1,13 @@
-Better Paseo puts every agent on one Tasks board across your phone, pad, and desktop. It also redraws conversations as compact rows for tool calls, reasoning, replies, prompts, checklists and errors.
+Better Paseo Math is an independent fork of [Better Paseo by RoundRedDot](https://github.com/RoundRedDot/better-paseo), based on version 1.6.2. It keeps the Tasks board and compact chat timeline and adds LaTeX rendering to assistant replies.
 
-Tool calls start collapsed. The timeline offers syntax highlighting, streaming Markdown, block details, previews and copying, including table-cell selection. The Tasks board supports search and filters, agent details, stop and archive actions, permission responses, and manual or model-generated titles. Available actions and selection controls vary by platform and host capabilities.
+Use inline formulas in prose or Markdown table cells, and display formulas on their own lines. Completed replies render formulas with MathJax. The timeline shows the original LaTeX while a reply streams or when a formula cannot be rendered. You can switch a rendered formula back to its source.
 
-## Setup and settings
+## Setup
 
-Paseo 0.14.0 or later is required. No separate service account is needed. Settings control reply rendering, fonts, previews and the Tasks board, including an optional provider, model and prompt for title generation. Mermaid code blocks use Paseo’s diagram renderer after the fence closes or the reply ends. Turning off plugin Markdown returns the whole reply to Paseo, including its file links.
+Use Paseo 0.14.0 or later with Node.js 22 or later and npm on the daemon host. Keep the plugin's Markdown rendering enabled to see formulas. Enable one assistant-reply renderer at a time. If Better Paseo or Math Renderer Plus already handles your replies, disable it before enabling Better Paseo Math.
 
-## Data access and limits
+## Data access
 
-The plugin reads displayed conversations, tool results, agent metadata and host appearance settings. Syntax highlighting sends displayed code to the daemon. Image previews can read files on the daemon; desktop file links can open files or reveal them in the file manager. Presentation and most board settings are shared by clients connected to the daemon.
+Formula text goes to your connected Paseo daemon. Its bundled MathJax renderer renders the formulas locally without an external math service. The plugin uses displayed conversations, tool results, agent metadata and appearance settings for the timeline and Tasks board. Syntax highlighting and file previews can use the daemon, and desktop actions can open or reveal files.
 
-When title generation is requested, excerpts of the conversation and the configured prompt are sent to a helper agent. By default it uses the provider, model and thinking level of the card's agent; the selected model is used only when Custom automatic title model is turned on. The helper uses the provider's configured permissions; the instruction not to use tools is not a sandbox. The plugin records recent turn timing, token usage and errors on the daemon and reads provider session files for available running token counts. Some board actions use the Paseo CLI or a local daemon connection and are unavailable when those capabilities are missing.
+Optional model-generated task titles send conversation excerpts and the configured prompt to a helper agent through the selected provider. The plugin stores recent turn timing, token usage and errors on the daemon, and can read provider session files for token counts. It can query npm for provider CLI version information. Some board actions use the Paseo CLI or a local daemon connection.

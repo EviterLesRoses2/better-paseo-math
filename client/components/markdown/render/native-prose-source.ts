@@ -3,6 +3,7 @@ import type { Token, Tokens } from "../../../vendor/marked";
 import { decodeEntities, isPathLike, softBreaks } from "./text";
 import { localImagePath, localPath } from "./local-path";
 import { lexBlock } from "../lex";
+import { hasInlineMath } from "../inline-math-token";
 
 export type ProseLink = { kind: "path" | "file" | "url"; target: string };
 export interface NativeProseSource { markdown: string; links: ProseLink[] }
@@ -62,6 +63,7 @@ export function nativeProseSource(tokens: readonly Token[]): NativeProseSource {
 export function nativeParagraphs(tokens: readonly Token[]): boolean {
   return tokens.some((token) => token.type === "paragraph" || token.type === "text") && tokens.every((token) =>
     token.type === "space" || ((token.type === "paragraph" || token.type === "text") &&
+      !hasInlineMath(token.tokens) &&
       !token.tokens?.some((run) => run.type === "image" && localImagePath(run.href) !== null)));
 }
 

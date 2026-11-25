@@ -14,6 +14,7 @@ import { BlockSelectionContext } from "./block-selection";
 import { renderInline } from "./inline";
 import { escapeProse, nativeBlockSource, nativeProseSource, type NativeProseSource } from "./native-prose-source";
 import { resolveLocalLink } from "./local-path";
+import { hasInlineMath } from "../inline-math-token";
 
 // Paseo 0.12 registers this Fabric component and its view config before rendering plugins.
 // Use the host's native view without bundling a second Markdown runtime or native library.
@@ -34,9 +35,11 @@ interface Props extends TextProps {
 
 /** A paragraph, heading or list body; code fences and tables keep their existing renderers. */
 export function MarkdownProse({ context, tokens, text, prefix, bold, style, ...rest }: Props) {
-  if (Platform.OS !== "ios" || context.plainProse) {
-    const body = text === undefined ? renderInline(tokens, context, "p", bold) : context.renderText ? context.renderText(text) : text;
-    return <ProseText style={style} {...rest}>{prefix
+  const inlineAttachments = context.displayMath && hasInlineMath(tokens);
+  if (Platform.OS !== "ios" || context.plainProse || inlineAttachments) {
+    const inlineContext = inlineAttachments ? { ...context, mathFontSize: StyleSheet.flatten(style)?.fontSize } : context;
+    const body = text === undefined ? renderInline(tokens, inlineContext, "p", bold) : context.renderText ? context.renderText(text) : text;
+    return <ProseText style={style} inlineAttachments={inlineAttachments} {...rest}>{prefix
       ? [<ProseSpan key="prefix" style={context.styles.headingHash}>{prefix}</ProseSpan>, body]
       : body}</ProseText>;
   }

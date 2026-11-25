@@ -9,11 +9,11 @@
 import { Lexer, type MarkedOptions, type Token } from "../../vendor/marked";
 import { perfCount, perfOn } from "../../debug/perf";
 import { insightStart, insightTokenizer } from "./insight";
+import { inlineMathStart, inlineMathTokenizer, protectMathTablePipes } from "./inline-math-token";
 
 /**
- * `$$ … $$` on its own lines: TeX shown as source (plan D6, no KaTeX). An
- * unclosed run takes the rest of the input, like an unclosed fence, so a
- * formula that is still streaming is a math block from its first character.
+ * Display math stays together while streaming, including before the closing
+ * delimiter has arrived.
  */
 export interface MathToken {
   type: "math";
@@ -24,14 +24,16 @@ export interface MathToken {
 
 const MATH_CLOSED_RE = /^ {0,3}\$\$([\s\S]*?)\$\$[ \t]*(?:\n+|$)/;
 const MATH_OPEN_RE = /^ {0,3}\$\$([\s\S]*)$/;
-const MATH_START_RE = /(?:^|\n) {0,3}\$\$/;
+const BRACKET_MATH_CLOSED_RE = /^ {0,3}\\\[((?:[ \t]*\n[\s\S]*?|[^\n]*?))\\\][ \t]*(?:\n+|$)/;
+const BRACKET_MATH_OPEN_RE = /^ {0,3}\\\[[ \t]*(?:\n([\s\S]*)|$)/;
+const MATH_START_RE = /(?:^|\n) {0,3}(?:\$\$|\\\[(?=[ \t]*(?:\n|$)|[^\n]*\\\][ \t]*(?:\n|$)))/;
 
 function mathTokenizer(src: string): MathToken | undefined {
-  const closed = MATH_CLOSED_RE.exec(src);
+  const closed = MATH_CLOSED_RE.exec(src) ?? BRACKET_MATH_CLOSED_RE.exec(src);
   if (closed !== null) {
     return { type: "math", raw: closed[0], text: (closed[1] ?? "").trim(), closed: true };
   }
-  const open = MATH_OPEN_RE.exec(src);
+  const open = MATH_OPEN_RE.exec(src) ?? BRACKET_MATH_OPEN_RE.exec(src);
   if (open !== null) {
     return { type: "math", raw: open[0], text: (open[1] ?? "").trim(), closed: false };
   }
@@ -49,7 +51,7 @@ function mathStart(src: string): number | undefined {
  * The options every lexer in the engine uses. Extensions are given in the
  * shape `marked.use` would build, so no global marked instance is touched.
  */
-export const LEXER_OPTIONS: MarkedOptions = {
+export const LEXER_OPTIONS: MarkedOptions = withMathTables({
   gfm: true,
   extensions: {
     renderers: {},
@@ -57,6 +59,37 @@ export const LEXER_OPTIONS: MarkedOptions = {
     block: [mathTokenizer as never, insightTokenizer],
     startBlock: [mathStart, insightStart],
   },
+});
+
+function withMathTables(options: MarkedOptions): MarkedOptions {
+  // Marked initializes its default tokenizer on the options on construction.
+  const tokenizer = new Lexer(options).options.tokenizer!;
+  const markedTable = tokenizer.table;
+  tokenizer.table = function (src) {
+    const candidate = this.rules.block.table.exec(src);
+    if (!candidate || !this.rules.other.tableDelimiter.test(candidate[2]!)) return undefined;
+    const raw = candidate[0];
+    if (!raw.includes("$") && !raw.includes("\\(")) return markedTable.call(this, src);
+
+    const columns = candidate[2]!.replace(this.rules.other.tableAlignChars, "").split("|").length;
+    const protectedSource = raw.split("\n").map((line, index) =>
+      index === 1 ? line : protectMathTablePipes(line, columns)).join("\n");
+    if (protectedSource !== raw) {
+      const table = markedTable.call(this, protectedSource);
+      if (table) {
+        // The lexer advances by raw.length. Copy and selection use this source too.
+        table.raw = raw;
+        return table;
+      }
+    }
+    return markedTable.call(this, src);
+  };
+  return options;
+}
+
+const MATH_LEXER_OPTIONS: MarkedOptions = {
+  ...LEXER_OPTIONS,
+  extensions: { ...LEXER_OPTIONS.extensions!, inline: [inlineMathTokenizer], startInline: [inlineMathStart] },
 };
 
 /** Block-level tokens only: what the splitter needs, without inline work. */
@@ -82,28 +115,31 @@ const tails = new Map<string, Token[]>();
  * treat the result as read-only: it is shared by every block with this
  * source. `open` marks the tail of a reply that is still streaming.
  */
-export function lexBlock(raw: string, open = false): Token[] {
-  const hit = lru.get(raw);
+export function lexBlock(raw: string, open = false, inlineMath = false): Token[] {
+  // Distinguish math-enabled and ordinary source with independent key prefixes.
+  const cacheKey = inlineMath ? `math:${raw}` : `plain:${raw}`;
+  const options = inlineMath ? MATH_LEXER_OPTIONS : LEXER_OPTIONS;
+  const hit = lru.get(cacheKey);
   if (hit !== undefined) {
     // Re-inserting moves the key to the young end of the insertion order.
-    lru.delete(raw);
-    lru.set(raw, hit);
+    lru.delete(cacheKey);
+    lru.set(cacheKey, hit);
     return hit;
   }
   if (!open && perfOn()) perfCount("md.lexFinalMiss");
   if (open) {
-    const tail = tails.get(raw);
+    const tail = tails.get(cacheKey);
     if (tail !== undefined) return tail;
-    const tokens: Token[] = Lexer.lex(raw, LEXER_OPTIONS);
-    tails.set(raw, tokens);
+    const tokens: Token[] = Lexer.lex(raw, options);
+    tails.set(cacheKey, tokens);
     if (tails.size > TAIL_LIMIT) {
       const oldest = tails.keys().next().value;
       if (oldest !== undefined) tails.delete(oldest);
     }
     return tokens;
   }
-  const tokens: Token[] = Lexer.lex(raw, LEXER_OPTIONS);
-  lru.set(raw, tokens);
+  const tokens: Token[] = Lexer.lex(raw, options);
+  lru.set(cacheKey, tokens);
   while (lru.size > LRU_LIMIT) {
     const oldest = lru.keys().next().value;
     if (oldest === undefined) break;
