@@ -26,10 +26,8 @@ import { toolbarLabel } from "../i18n/toolbar-strings";
  * `kind: "plugin"` (`plugins/timeline/projection.ts:96`), so once this plugin
  * renders the reply the host finds no assistant and draws no footer.
  *
- * This is the part a plugin can rebuild. Fork is not: it needs the daemon
- * client and a timeline cursor (`hooks/use-fork-agent.ts`), and the plugin SDK
- * exposes neither. Turning "Assistant markdown" off in settings hands the reply
- * back to the host, which brings the full footer with it.
+ * The plugin renders these controls for replies it transforms. Host replies
+ * keep the host's footer.
  */
 interface AssistantFooterProps {
   /** The reply, copied verbatim — the same text the host would copy. */
@@ -47,9 +45,10 @@ interface AssistantFooterProps {
   tokens: ExtendedThemeTokens;
   /** `layout.compact`: a 44pt touch target for Copy. */
   compact?: boolean;
+  onFork?: () => void;
 }
 
-export function AssistantFooter({ text, at, agentName, modelId, modelName, thinkingLabel, durationMs, startedAt, usage, tokens, compact = false }: AssistantFooterProps) {
+export function AssistantFooter({ text, at, agentName, modelId, modelName, thinkingLabel, durationMs, startedAt, usage, tokens, compact = false, onFork }: AssistantFooterProps) {
   // The shared copy path (plan §3.8): a check for 1.2 s on success, a toast
   // on failure, and no timer left running after unmount.
   const { copied, copy } = useCopy();
@@ -70,7 +69,7 @@ export function AssistantFooter({ text, at, agentName, modelId, modelName, think
   // replayed turn spans a millisecond or two. Their live turns time normally.
   const visibleDurationMs = (agentName === "grok" || agentName === "cursor") && durationMs != null &&
     durationMs < REPLAY_COLLAPSE_MS ? null : durationMs;
-  const { fit, measure } = useOneLineFit(compact, Boolean(modelName), visibleDurationMs != null);
+  const { fit, measure } = useOneLineFit(compact, Boolean(modelName), visibleDurationMs != null, Boolean(onFork));
   const details = <FooterDetails agentName={agentName} modelId={modelId} modelName={modelName} thinkingLabel={thinkingLabel}
     startedAt={startedAt} completedAt={at.getTime()} durationMs={visibleDurationMs} usage={usage} tokens={tokens} />;
   const copyModel = useCallback(() => {
@@ -159,6 +158,12 @@ export function AssistantFooter({ text, at, agentName, modelId, modelName, think
           />
           <Text style={styles.copyLabel}>{toolbarLabel("Copy", language)}</Text>
         </ToolbarItem>
+        {onFork ? <ToolbarItem onLayout={compact ? measure.fork : undefined} label="Fork from here"
+          accessibilityLabel={toolbarLabel("Fork from here", language)} tokens={tokens} align="start"
+          onPress={onFork} hitSlop={compact ? (44 - FOOTER_HEIGHT) / 2 : 0} buttonStyle={styles.copyButton}>
+          <Icon name="GitBranch" size={DISCLOSURE_HEADER.icon} color={tokens.foregroundMuted} />
+          <Text style={styles.copyLabel}>{toolbarLabel("Fork", language)}</Text>
+        </ToolbarItem> : null}
         {modelName && fit.model ? (
           <ToolbarItem
             onLayout={compact ? measure.model : undefined}
@@ -215,13 +220,13 @@ const FOOTER_HEIGHT = 24;
 /** A replayed Grok or Cursor turn spans under this; a live model turn never does. */
 const REPLAY_COLLAPSE_MS = 1_000;
 
-type FooterSlot = "copy" | "model" | "clock" | "duration";
+type FooterSlot = "copy" | "fork" | "model" | "clock" | "duration";
 export interface FooterFit { model: boolean; clock: boolean }
 
 /**
  * Which items one line holds, given each item's width (absent when not drawn)
  * and the row's. The clock goes first, then the model name: both stay in the
- * long-press details. Copy and the elapsed time always stay.
+ * long-press details. Copy, Fork and the elapsed time always stay.
  */
 export function fitOneLine(widths: Partial<Record<FooterSlot, number>>, row: number, gap: number): FooterFit {
   const span = (slots: readonly FooterSlot[]) => {
@@ -230,8 +235,8 @@ export function fitOneLine(widths: Partial<Record<FooterSlot, number>>, row: num
   };
   // Half a point of rounding must not drop an item that fits.
   const fits = (slots: readonly FooterSlot[]) => span(slots) <= row + 0.5;
-  if (fits(["copy", "model", "clock", "duration"])) return { model: true, clock: true };
-  if (fits(["copy", "model", "duration"])) return { model: true, clock: false };
+  if (fits(["copy", "fork", "model", "clock", "duration"])) return { model: true, clock: true };
+  if (fits(["copy", "fork", "model", "duration"])) return { model: true, clock: false };
   return { model: false, clock: false };
 }
 
@@ -241,17 +246,17 @@ const FIT_ALL: FooterFit = { model: true, clock: true };
  * Measures the compact row and its items. A dropped item keeps its last width,
  * so a wider row brings it back; an item not drawn at all counts for nothing.
  */
-function useOneLineFit(compact: boolean, hasModel: boolean, hasDuration: boolean) {
+function useOneLineFit(compact: boolean, hasModel: boolean, hasDuration: boolean, hasFork: boolean) {
   const [widths, setWidths] = useState<Partial<Record<FooterSlot | "row", number>>>({});
   const measure = useMemo(() => {
     const slot = (name: FooterSlot | "row") => (event: LayoutChangeEvent) => {
       const width = event.nativeEvent.layout.width;
       setWidths((previous) => previous[name] === width ? previous : { ...previous, [name]: width });
     };
-    return { row: slot("row"), copy: slot("copy"), model: slot("model"), clock: slot("clock"), duration: slot("duration") };
+    return { row: slot("row"), copy: slot("copy"), fork: slot("fork"), model: slot("model"), clock: slot("clock"), duration: slot("duration") };
   }, []);
-  const { row, model, duration, ...rest } = widths;
-  const fit = compact && row ? fitOneLine({ ...rest, ...(hasModel ? { model } : {}), ...(hasDuration ? { duration } : {}) },
+  const { row, model, duration, fork, ...rest } = widths;
+  const fit = compact && row ? fitOneLine({ ...rest, ...(hasFork ? { fork } : {}), ...(hasModel ? { model } : {}), ...(hasDuration ? { duration } : {}) },
     row, space.sm) : FIT_ALL;
   return { fit, measure };
 }

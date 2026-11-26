@@ -20,8 +20,8 @@ evidence and the workaround this plugin uses; the user-facing summary is
 2. **Transformers see a stripped item.** The app maps its stream item to the plugin item before any
    transformer runs, and a user message keeps only `text`, `messageId`, and `clientMessageId`. Pasted
    images never reach plugin code, and the daemon timeline row stores the same item, so a server RPC
-   cannot recover them either. Workaround: **Enhanced prompt bubble** is off by default, so the host
-   keeps the prompt and its pasted images. Turning the setting on replaces that bubble.
+   cannot recover them either. The enhanced prompt bubble is enabled by default. When attachment
+   information is present and the plugin cannot render it, the transformer leaves the bubble to Paseo.
 3. **Interception is all or nothing.** A transformer replaces the host item completely. There is no
    way to decorate an item or keep host affordances that the plugin does not reimplement. Returning
    `undefined` is the only opt-out.

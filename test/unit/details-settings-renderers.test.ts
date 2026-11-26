@@ -49,6 +49,7 @@ vi.mock("../../client/state/todo-timeline", () => ({
   useTodoTimeline: () => ({ role: "full", previous: [], emptyGaps: { above: 0, below: 0 }, measureEmptyGaps() {} }),
 }));
 vi.mock("../../client/components/hub-live", () => ({ TimelineTailHub: () => null }));
+vi.mock("../../client/ui/toolbar-button", () => ({ ToolbarButton: () => null }));
 vi.mock("../../client/components/turn-footer", () => ({ AssistantFooter: () => null }));
 vi.mock("../../client/components/system-card", () => ({ SystemCard: () => null }));
 vi.mock("../../client/components/markdown/markdown-view", () => ({ MarkdownView: () => null }));

@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from "react";
 import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "@getpaseo/plugin/client/ui";
 import { radiusV2, space } from "./theme-tokens";
+import { SpokenLabelsContext, ToolbarItem } from "../ui/toolbar-button";
 import { useCopy } from "../ui/use-copy";
 import { useInputCapabilities } from "../ui/use-input-capabilities";
 import { FadeIn } from "../ui/fade-in";
@@ -40,8 +41,10 @@ interface UserMessageProps {
   footer?: React.ReactNode;
   /** `layout.compact`: the bubble may take more of a narrow column. */
   compact?: boolean;
-  /** Controls drawn just before Copy, as the host draws its rewind menu there. */
+  /** Optional host controls when the plugin edit action is unavailable. */
   actions?: React.ReactNode;
+  onEdit?: () => void;
+  onFork?: () => void;
 }
 
 /**
@@ -83,6 +86,8 @@ export function UserMessage({
   footer,
   compact = false,
   actions,
+  onEdit,
+  onFork,
 }: UserMessageProps) {
   // The shared copy path: the icon turns into a check for 1.2 s, a failure
   // is a toast, and the timer is cleared on unmount.
@@ -197,7 +202,15 @@ export function UserMessage({
           />
         </Pressable>
         {/* The row runs right to left: these sit just left of Copy. */}
-        {actions}
+        <SpokenLabelsContext.Provider value>
+          {onEdit ? <ToolbarItem label="Edit & overwrite" tokens={tokens} onPress={onEdit} hitSlop={compact ? 10 : 4}>
+            <Icon name="Pencil" size={COPY_ICON} color={tokens.userTextMuted} />
+          </ToolbarItem> : null}
+          {onFork ? <ToolbarItem label="Fork from here" tokens={tokens} onPress={onFork} hitSlop={compact ? 10 : 4}>
+            <Icon name="GitBranch" size={COPY_ICON} color={tokens.userTextMuted} />
+          </ToolbarItem> : null}
+        </SpokenLabelsContext.Provider>
+        {onEdit ? null : actions}
         {timestamp ? <Text style={styles.clock}>{formatStamp(timestamp)}</Text> : null}
         {footer !== undefined ? footer : <TurnUsageRow usage={usage} pending={pending} tokens={tokens} />}
       </View>

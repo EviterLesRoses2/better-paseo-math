@@ -19,6 +19,7 @@ import type { createMathRenderer } from "./server/math/render";
 import { EMBEDDED_FONTS } from "./server/font-data";
 import { MARK_BITMAPS } from "./server/mark-bitmaps";
 import { writePerfDump } from "./server/perf-dump";
+import { registerConversationActions } from "./server/conversation-actions";
 import { registerTasksServer } from "./server/tasks/register";
 import { registerTurnUsageServer } from "./server/turn-usage";
 import { launches } from "./server/open-path";
@@ -491,6 +492,7 @@ export default function contribute(server: PluginServerContext) {
   server.handle(openTerminalRpc, () => ({ status: "unsupported" } as const));
   // The Tasks board's settings and its stop RPCs.
   registerTasksServer(server);
+  registerConversationActions(server);
   // Each turn's token usage, kept on disk for the turn details.
   registerTurnUsageServer(server);
 

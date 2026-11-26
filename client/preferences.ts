@@ -238,7 +238,7 @@ export const DEFAULT_PREFERENCES: Readonly<EnhancerPreferences> = {
   previewStripes: true,
   chatEnabled: true,
   timelineLevel: "standard",
-  enhancedUserBubble: false,
+  enhancedUserBubble: true,
   selectionActions: true,
   assistantMarkdown: true,
   liveUiReplies: false,

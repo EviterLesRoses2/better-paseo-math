@@ -75,6 +75,7 @@ export function toolPropsEqual<T extends ToolData>(prev: Props<T>, next: Props<T
 
 interface TextData {
   text: string;
+  messageId?: string;
   phase?: string;
   blockIndex?: number;
   messageText?: string;
@@ -95,7 +96,7 @@ export function assistantPropsEqual<T extends TextData>(prev: Props<T>, next: Pr
   return (
     sameFrame(prev, next) &&
     sameTime(prev.timestamp, next.timestamp) &&
-    a.phase === b.phase &&
+    a.phase === b.phase && a.messageId === b.messageId &&
     a.blockIndex === b.blockIndex && a.listContinuation === b.listContinuation && sameText(a.messageText, b.messageText) &&
     sameText(a.text, b.text)
   );

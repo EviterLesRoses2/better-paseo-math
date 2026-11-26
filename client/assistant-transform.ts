@@ -7,6 +7,7 @@ import type { Tokens } from "./vendor/marked";
 export interface AssistantRowData {
   text: string;
   phase?: string;
+  messageId?: string;
   blockIndex?: number;
   /** Only the last row carries the original text for copy and turn attribution. */
   messageText?: string;
@@ -63,7 +64,7 @@ export function hasUiFence(text: string, phase = "complete"): boolean {
 }
 
 /** Completed long replies use the host's existing row virtualization. */
-export function assistantRows(text: string, phase: string) {
+export function assistantRows(text: string, phase: string, messageId?: string) {
   if (isAssistantPlaceholder(text)) return [];
   // Definitions and their references share a lexer context, as do system cards.
   const blocks = phase === "complete" && text.length > 16_384 &&
@@ -73,6 +74,7 @@ export function assistantRows(text: string, phase: string) {
     type: "plugin" as const, kind: "omp-assistant", version: 1,
     data: {
       ...block, phase,
+      ...(messageId ? { messageId } : {}),
       ...(blocks.length > 1 ? { blockIndex: index,
         ...(index === blocks.length - 1 ? { messageText: text } : {}) } : {}),
     } satisfies AssistantRowData,
