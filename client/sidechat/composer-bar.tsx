@@ -41,9 +41,9 @@ import {
   formatShortModelLabel,
   formatShortModeLabel,
   formatShortThinkingLabel,
+  resolveComposerToolbarLayout,
   resolveModeIconName,
   resolveProviderIconSvg,
-  resolveToolbarDensity,
 } from "../../shared/sidechat/composer-controls";
 import {
   forgeInfoRpc,
@@ -75,6 +75,7 @@ import {
   type PickedWebFile,
   pointerCursorStyle,
   useComposerInputSizing,
+  webTooltipProps,
 } from "./web";
 
 function normalizeLucideIconName(raw: string | undefined | null, fallback: string): string {
@@ -253,8 +254,6 @@ export function SidechatComposerBar({
 
   // Paseo exact composer & toolbar geometry tokens (`MOD 3390` + `MOD 4966` + `MOD 4990`)
   const toolbarControlHeight = isTouch ? 44 : 28;
-  const discSize = isTouch ? 36 : 28;
-  const controlGap = isTouch ? 0 : 4;
   const glyphSize = isTouch ? 18 : 15;
   const caretSize = 12;
   const ringSize = isTouch ? 18 : 16;
@@ -265,8 +264,16 @@ export function SidechatComposerBar({
   const toolbarLeadingOverhang = isTouch ? 9 : 6;
   const toolbarTrailingOverhang = isTouch ? 8 : 6;
   const labelFontSize = Math.max(12, appearance.uiBaseFontSize);
-  const density = resolveToolbarDensity(panelWidth, isTouch);
   const compact = isTouch || panelWidth < 460;
+  const [measuredToolbarWidth, setMeasuredToolbarWidth] = useState<number | null>(null);
+  const estimatedToolbarWidth = Math.max(
+    0,
+    Math.min(Math.max(0, panelWidth - space.lg * 2), appearance.contentMaxWidth) -
+      composerPaddingHorizontal * 2 +
+      toolbarLeadingOverhang +
+      toolbarTrailingOverhang,
+  );
+  const effectiveToolbarWidth = measuredToolbarWidth ?? estimatedToolbarWidth;
   const [inputSurfaceWidth, setInputSurfaceWidth] = useState(() =>
     Math.max(160, Math.min(panelWidth, appearance.contentMaxWidth) - 64),
   );
@@ -544,8 +551,66 @@ export function SidechatComposerBar({
   const shortMode = formatShortModeLabel(effectiveModeId, selectedModeRawLabel);
   const modeIcon = resolveModeIconName(effectiveModeId, selectedModeIconName);
 
-  const showThinkingLabel = density === "full";
-  const showModeLabel = density !== "iconOnly";
+  const toolbarLayout = useMemo(() => {
+    let toggleOptionCount = 0;
+    const selectOptions: Array<{ key: string; label: string; allowLabel: boolean }> = [];
+    for (const ctrl of optionControls) {
+      if (ctrl.type === "toggle") {
+        toggleOptionCount += 1;
+      } else {
+        const rawVal = effectiveOptions[ctrl.key];
+        const activeVal =
+          typeof rawVal === "string"
+            ? rawVal
+            : (ctrl.defaultValue ?? ctrl.choices[0]?.value ?? "");
+        const activeChoice = ctrl.choices.find((c) => c.value === activeVal);
+        selectOptions.push({
+          key: ctrl.key,
+          label: activeChoice?.label ?? ctrl.label,
+          allowLabel: ctrl.desktopTrigger !== "icon",
+        });
+      }
+    }
+    return resolveComposerToolbarLayout({
+      availableWidth: effectiveToolbarWidth,
+      isTouch,
+      labelFontSize,
+      hasModel: modelMenuOptions.length > 0,
+      modelLabel: shortModel,
+      hasThinking: thinkingMenuOptions.length > 0,
+      thinkingLabel: shortThinking,
+      hasMode: modeMenuOptions.length > 0,
+      modeLabel: shortMode,
+      toggleOptionCount,
+      selectOptions,
+      hasMainContextToggle: hasMainAgent,
+    });
+  }, [
+    effectiveToolbarWidth,
+    isTouch,
+    labelFontSize,
+    modelMenuOptions.length,
+    shortModel,
+    thinkingMenuOptions.length,
+    shortThinking,
+    modeMenuOptions.length,
+    shortMode,
+    optionControls,
+    effectiveOptions,
+    hasMainAgent,
+  ]);
+
+  const buttonSize = toolbarLayout.iconButtonSize;
+  const effectiveControlGap = toolbarLayout.controlGap;
+  const effectiveGlyphSize = buttonSize <= 25 ? Math.max(13, glyphSize - 1) : glyphSize;
+  const effectiveRingSize = Math.min(ringSize, Math.max(13, buttonSize - 10));
+  const showModelLabel = toolbarLayout.showModelLabel;
+  const showThinkingLabel = toolbarLayout.showThinkingLabel;
+  const showModeLabel = toolbarLayout.showModeLabel;
+  const visibleSelectLabelSet = useMemo(
+    () => new Set(toolbarLayout.visibleSelectLabelKeys),
+    [toolbarLayout.visibleSelectLabelKeys],
+  );
 
   const hasFloatingPillRow =
     (hasMainAgent && shouldAttachMainContext) || Boolean(candidateSelection && !attachedQuote);
@@ -884,6 +949,7 @@ export function SidechatComposerBar({
               <View
                 style={{
                   minHeight: 32,
+                  maxWidth: "100%",
                   paddingLeft: 12,
                   paddingRight: 6,
                   paddingVertical: space.xs,
@@ -902,6 +968,8 @@ export function SidechatComposerBar({
                   onPress={onPreviewMainContext}
                   style={[
                     {
+                      flexShrink: 1,
+                      minWidth: 0,
                       flexDirection: "row",
                       alignItems: "center",
                       gap: 6,
@@ -913,7 +981,9 @@ export function SidechatComposerBar({
                   <Icon name="Link2" size={12} color={colors.accent} />
                   <Text
                     numberOfLines={1}
+                    ellipsizeMode="tail"
                     style={{
+                      flexShrink: 1,
                       fontFamily: tokens.fontUi,
                       fontSize: Math.max(11, appearance.uiBaseFontSize - 1),
                       color: colors.foregroundMuted,
@@ -951,6 +1021,7 @@ export function SidechatComposerBar({
                 style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
                   {
                     minHeight: 32,
+                    maxWidth: "100%",
                     paddingHorizontal: space.md,
                     paddingVertical: space.xs,
                     borderRadius: radiusV2.bubble,
@@ -967,7 +1038,9 @@ export function SidechatComposerBar({
                 <Icon name="Plus" size={12} color={colors.accent} />
                 <Text
                   numberOfLines={1}
+                  ellipsizeMode="tail"
                   style={{
+                    flexShrink: 1,
                     fontFamily: tokens.fontUi,
                     fontSize: Math.max(11, appearance.uiBaseFontSize - 1),
                     color: colors.foregroundMuted,
@@ -1316,6 +1389,15 @@ export function SidechatComposerBar({
 
             {/* Paseo Bottom Toolbar Row (`TOOLBAR_CONTROL_HEIGHT` + `composerToolbarOverhang`) */}
             <View
+              testID="sidechat-composer-toolbar"
+              onLayout={(e) => {
+                const w = e.nativeEvent.layout.width;
+                if (w > 0) {
+                  setMeasuredToolbarWidth((prev) =>
+                    prev !== null && Math.abs(w - prev) < 1 ? prev : w,
+                  );
+                }
+              }}
               style={{
                 minHeight: toolbarControlHeight,
                 marginLeft: -toolbarLeadingOverhang,
@@ -1333,7 +1415,7 @@ export function SidechatComposerBar({
                   minWidth: 0,
                   flexDirection: "row",
                   alignItems: "center",
-                  gap: controlGap,
+                  gap: effectiveControlGap,
                 }}
               >
             {/* 1. Paseo `+` Attachment Menu + Searchable Issue/PR & Plugin Resource Picker */}
@@ -1351,6 +1433,7 @@ export function SidechatComposerBar({
                 options={plusMenuOptions}
                 trigger={
                   <Pressable
+                    {...webTooltipProps(t("addAttachment"))}
                     accessibilityRole="button"
                     accessibilityLabel={t("addAttachment")}
                     onPress={() => {
@@ -1359,8 +1442,8 @@ export function SidechatComposerBar({
                     }}
                     style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
                       {
-                        width: discSize,
-                        height: discSize,
+                        width: buttonSize,
+                        height: buttonSize,
                         borderRadius: radiusV2.pill,
                         alignItems: "center",
                         justifyContent: "center",
@@ -1374,7 +1457,7 @@ export function SidechatComposerBar({
                   >
                     <Icon
                       name="Plus"
-                      size={glyphSize + 1}
+                      size={effectiveGlyphSize + 1}
                       color={
                         plusMenuOpen || Boolean(activePicker) || attachments.length > 0
                           ? colors.foreground
@@ -1447,45 +1530,65 @@ export function SidechatComposerBar({
                 options={modelMenuOptions}
                 trigger={
                   <Pressable
+                    {...webTooltipProps(`${t("modelLabel")}: ${shortModel}`)}
                     accessibilityRole="button"
                     accessibilityLabel={`${t("modelLabel")}: ${shortModel}`}
                     onPress={() => setModelMenuOpen((v) => !v)}
                     style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
-                      {
-                        height: discSize,
-                        maxWidth: density === "iconOnly" ? 115 : 152,
-                        paddingHorizontal: space.sm,
-                        borderRadius: radiusV2.pill,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 5,
-                        backgroundColor:
-                          modelMenuOpen || pressed || hovered ? colors.surface2 : "transparent",
-                      },
+                      showModelLabel
+                        ? {
+                            height: buttonSize,
+                            maxWidth: toolbarLayout.modelMaxWidth,
+                            paddingHorizontal: space.sm,
+                            borderRadius: radiusV2.pill,
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 5,
+                            backgroundColor:
+                              modelMenuOpen || pressed || hovered ? colors.surface2 : "transparent",
+                          }
+                        : {
+                            width: buttonSize,
+                            height: buttonSize,
+                            borderRadius: radiusV2.pill,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            backgroundColor:
+                              modelMenuOpen || pressed || hovered ? colors.surface2 : "transparent",
+                          },
                       pointerCursorStyle,
                     ]}
                   >
                     {resolvedProviderSvg ? (
                       <Icon
                         icon={{ svg: resolvedProviderSvg }}
-                        size={glyphSize - 1}
-                        color={colors.foregroundMuted}
+                        size={showModelLabel ? effectiveGlyphSize - 1 : effectiveGlyphSize}
+                        color={modelMenuOpen ? colors.foreground : colors.foregroundMuted}
                       />
                     ) : (
-                      <Icon name="Cpu" size={glyphSize - 1} color={colors.foregroundMuted} />
+                      <Icon
+                        name="Cpu"
+                        size={showModelLabel ? effectiveGlyphSize - 1 : effectiveGlyphSize}
+                        color={modelMenuOpen ? colors.foreground : colors.foregroundMuted}
+                      />
                     )}
-                    <Text
-                      numberOfLines={1}
-                      style={{
-                        fontFamily: tokens.fontUi,
-                        flexShrink: 1,
-                        fontSize: labelFontSize,
-                        color: modelMenuOpen ? colors.foreground : colors.foregroundMuted,
-                      }}
-                    >
-                      {shortModel}
-                    </Text>
-                    <Icon name="ChevronDown" size={caretSize} color={colors.foregroundMuted} />
+                    {showModelLabel ? (
+                      <>
+                        <Text
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                          style={{
+                            fontFamily: tokens.fontUi,
+                            flexShrink: 1,
+                            fontSize: labelFontSize,
+                            color: modelMenuOpen ? colors.foreground : colors.foregroundMuted,
+                          }}
+                        >
+                          {shortModel}
+                        </Text>
+                        <Icon name="ChevronDown" size={caretSize} color={colors.foregroundMuted} />
+                      </>
+                    ) : null}
                   </Pressable>
                 }
               />
@@ -1504,43 +1607,61 @@ export function SidechatComposerBar({
                 options={thinkingMenuOptions}
                 trigger={
                   <Pressable
+                    {...webTooltipProps(`${t("thinkingLabel")}: ${shortThinking}`)}
                     accessibilityRole="button"
                     accessibilityLabel={`${t("thinkingLabel")}: ${shortThinking}`}
                     onPress={() => setThinkingMenuOpen((v) => !v)}
                     style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
-                      {
-                        height: discSize,
-                        paddingHorizontal: showThinkingLabel ? 8 : 6,
-                        borderRadius: radiusV2.pill,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: space.xs,
-                        backgroundColor:
-                          thinkingMenuOpen || pressed || hovered
-                            ? colors.surface2
-                            : "transparent",
-                      },
+                      showThinkingLabel
+                        ? {
+                            height: buttonSize,
+                            maxWidth: toolbarLayout.thinkingMaxWidth,
+                            paddingHorizontal: space.sm,
+                            borderRadius: radiusV2.pill,
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: space.xs,
+                            backgroundColor:
+                              thinkingMenuOpen || pressed || hovered
+                                ? colors.surface2
+                                : "transparent",
+                          }
+                        : {
+                            width: buttonSize,
+                            height: buttonSize,
+                            borderRadius: radiusV2.pill,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            backgroundColor:
+                              thinkingMenuOpen || pressed || hovered
+                                ? colors.surface2
+                                : "transparent",
+                          },
                       pointerCursorStyle,
                     ]}
                   >
                     <Icon
                       name="Brain"
-                      size={glyphSize}
+                      size={effectiveGlyphSize}
                       color={thinkingMenuOpen ? colors.foreground : colors.foregroundMuted}
                     />
                     {showThinkingLabel ? (
-                      <Text
-                        numberOfLines={1}
-                        style={{
-                          fontFamily: tokens.fontUi,
-                          fontSize: labelFontSize,
-                          color: thinkingMenuOpen ? colors.foreground : colors.foregroundMuted,
-                        }}
-                      >
-                        {shortThinking}
-                      </Text>
+                      <>
+                        <Text
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                          style={{
+                            fontFamily: tokens.fontUi,
+                            flexShrink: 1,
+                            fontSize: labelFontSize,
+                            color: thinkingMenuOpen ? colors.foreground : colors.foregroundMuted,
+                          }}
+                        >
+                          {shortThinking}
+                        </Text>
+                        <Icon name="ChevronDown" size={caretSize} color={colors.foregroundMuted} />
+                      </>
                     ) : null}
-                    <Icon name="ChevronDown" size={caretSize} color={colors.foregroundMuted} />
                   </Pressable>
                 }
               />
@@ -1559,41 +1680,57 @@ export function SidechatComposerBar({
                 options={modeMenuOptions}
                 trigger={
                   <Pressable
+                    {...webTooltipProps(`${t("modeLabel")}: ${shortMode}`)}
                     accessibilityRole="button"
                     accessibilityLabel={`${t("modeLabel")}: ${shortMode}`}
                     onPress={() => setModeMenuOpen((v) => !v)}
                     style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
-                      {
-                        height: discSize,
-                        paddingHorizontal: showModeLabel ? 8 : 6,
-                        borderRadius: radiusV2.pill,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: space.xs,
-                        backgroundColor:
-                          modeMenuOpen || pressed || hovered ? colors.surface2 : "transparent",
-                      },
+                      showModeLabel
+                        ? {
+                            height: buttonSize,
+                            maxWidth: toolbarLayout.modeMaxWidth,
+                            paddingHorizontal: space.sm,
+                            borderRadius: radiusV2.pill,
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: space.xs,
+                            backgroundColor:
+                              modeMenuOpen || pressed || hovered ? colors.surface2 : "transparent",
+                          }
+                        : {
+                            width: buttonSize,
+                            height: buttonSize,
+                            borderRadius: radiusV2.pill,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            backgroundColor:
+                              modeMenuOpen || pressed || hovered ? colors.surface2 : "transparent",
+                          },
                       pointerCursorStyle,
                     ]}
                   >
                     <Icon
                       name={modeIcon}
-                      size={glyphSize}
+                      size={effectiveGlyphSize}
                       color={modeMenuOpen ? colors.foreground : colors.foregroundMuted}
                     />
                     {showModeLabel ? (
-                      <Text
-                        numberOfLines={1}
-                        style={{
-                          fontFamily: tokens.fontUi,
-                          fontSize: labelFontSize,
-                          color: modeMenuOpen ? colors.foreground : colors.foregroundMuted,
-                        }}
-                      >
-                        {shortMode}
-                      </Text>
+                      <>
+                        <Text
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                          style={{
+                            fontFamily: tokens.fontUi,
+                            flexShrink: 1,
+                            fontSize: labelFontSize,
+                            color: modeMenuOpen ? colors.foreground : colors.foregroundMuted,
+                          }}
+                        >
+                          {shortMode}
+                        </Text>
+                        <Icon name="ChevronDown" size={caretSize} color={colors.foregroundMuted} />
+                      </>
                     ) : null}
-                    <Icon name="ChevronDown" size={caretSize} color={colors.foregroundMuted} />
                   </Pressable>
                 }
               />
@@ -1612,14 +1749,15 @@ export function SidechatComposerBar({
                 return (
                   <Pressable
                     key={ctrl.key}
+                    {...webTooltipProps(ctrl.label)}
                     accessibilityRole="checkbox"
                     accessibilityLabel={ctrl.label}
                     accessibilityState={{ checked }}
                     onPress={() => onSetOption(ctrl.key, !checked)}
                     style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
                       {
-                        width: discSize,
-                        height: discSize,
+                        width: buttonSize,
+                        height: buttonSize,
                         borderRadius: radiusV2.pill,
                         alignItems: "center",
                         justifyContent: "center",
@@ -1634,7 +1772,7 @@ export function SidechatComposerBar({
                   >
                     <Icon
                       name={iconName}
-                      size={glyphSize}
+                      size={effectiveGlyphSize}
                       color={checked ? colors.statusWarning : colors.foregroundMuted}
                     />
                   </Pressable>
@@ -1648,8 +1786,8 @@ export function SidechatComposerBar({
                   : (ctrl.defaultValue ?? ctrl.choices[0]?.value ?? "");
               const activeChoice = ctrl.choices.find((c) => c.value === activeVal);
               const isOpen = openSelectOptionKey === ctrl.key;
-              const showSelectLabel =
-                ctrl.desktopTrigger !== "icon" && density === "full";
+              const showSelectLabel = visibleSelectLabelSet.has(ctrl.key);
+              const selectMaxWidth = toolbarLayout.selectMaxWidths[ctrl.key];
               const selectOptions: MenuOption[] = ctrl.choices.map((ch) => ({
                 id: ch.value,
                 label: ch.label,
@@ -1671,43 +1809,59 @@ export function SidechatComposerBar({
                   options={selectOptions}
                   trigger={
                     <Pressable
+                      {...webTooltipProps(`${ctrl.label}: ${activeChoice?.label ?? activeVal}`)}
                       accessibilityRole="button"
                       accessibilityLabel={`${ctrl.label}: ${activeChoice?.label ?? activeVal}`}
                       onPress={() =>
                         setOpenSelectOptionKey((prev) => (prev === ctrl.key ? null : ctrl.key))
                       }
                       style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
-                        {
-                          height: discSize,
-                          paddingHorizontal: showSelectLabel ? 8 : 6,
-                          borderRadius: radiusV2.pill,
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: space.xs,
-                          backgroundColor:
-                            isOpen || pressed || hovered ? colors.surface2 : "transparent",
-                        },
+                        showSelectLabel
+                          ? {
+                              height: buttonSize,
+                              maxWidth: selectMaxWidth,
+                              paddingHorizontal: space.sm,
+                              borderRadius: radiusV2.pill,
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: space.xs,
+                              backgroundColor:
+                                isOpen || pressed || hovered ? colors.surface2 : "transparent",
+                            }
+                          : {
+                              width: buttonSize,
+                              height: buttonSize,
+                              borderRadius: radiusV2.pill,
+                              alignItems: "center",
+                              justifyContent: "center",
+                              backgroundColor:
+                                isOpen || pressed || hovered ? colors.surface2 : "transparent",
+                            },
                         pointerCursorStyle,
                       ]}
                     >
                       <Icon
                         name={normalizeLucideIconName(ctrl.icon, "SlidersHorizontal")}
-                        size={glyphSize}
+                        size={effectiveGlyphSize}
                         color={isOpen ? colors.foreground : colors.foregroundMuted}
                       />
                       {showSelectLabel ? (
-                        <Text
-                          numberOfLines={1}
-                          style={{
-                            fontFamily: tokens.fontUi,
-                            fontSize: labelFontSize,
-                            color: isOpen ? colors.foreground : colors.foregroundMuted,
-                          }}
-                        >
-                          {activeChoice?.label ?? ctrl.label}
-                        </Text>
+                        <>
+                          <Text
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                            style={{
+                              fontFamily: tokens.fontUi,
+                              flexShrink: 1,
+                              fontSize: labelFontSize,
+                              color: isOpen ? colors.foreground : colors.foregroundMuted,
+                            }}
+                          >
+                            {activeChoice?.label ?? ctrl.label}
+                          </Text>
+                          <Icon name="ChevronDown" size={caretSize} color={colors.foregroundMuted} />
+                        </>
                       ) : null}
-                      <Icon name="ChevronDown" size={caretSize} color={colors.foregroundMuted} />
                     </Pressable>
                   }
                 />
@@ -1717,6 +1871,9 @@ export function SidechatComposerBar({
             {/* 5b. Compact Main Session Context Toggle Icon */}
             {hasMainAgent ? (
               <Pressable
+                {...webTooltipProps(
+                  shouldAttachMainContext ? t("mainContextAttached") : t("mainContextOff"),
+                )}
                 accessibilityRole="checkbox"
                 accessibilityLabel={
                   shouldAttachMainContext ? t("mainContextAttached") : t("mainContextOff")
@@ -1725,8 +1882,8 @@ export function SidechatComposerBar({
                 onPress={onToggleMainContext}
                 style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
                   {
-                    width: discSize,
-                    height: discSize,
+                    width: buttonSize,
+                    height: buttonSize,
                     borderRadius: radiusV2.pill,
                     alignItems: "center",
                     justifyContent: "center",
@@ -1741,7 +1898,7 @@ export function SidechatComposerBar({
               >
                 <Icon
                   name="Link2"
-                  size={glyphSize}
+                  size={effectiveGlyphSize}
                   color={shouldAttachMainContext ? colors.accent : colors.foregroundMuted}
                 />
               </Pressable>
@@ -1753,7 +1910,7 @@ export function SidechatComposerBar({
             style={{
               flexDirection: "row",
               alignItems: "center",
-              gap: controlGap,
+              gap: effectiveControlGap,
               flexShrink: 0,
             }}
           >
@@ -1767,24 +1924,25 @@ export function SidechatComposerBar({
               tokens={tokens}
               appearance={appearance}
               panelWidth={panelWidth}
-              discSize={discSize}
-              ringSize={ringSize}
+              discSize={buttonSize}
+              ringSize={effectiveRingSize}
               isTouch={isTouch}
               locale={locale}
               t={t}
             />
 
             {/* 7. Circular Stop / Always-Visible Send Disc (`Qe.sendButtonDisc` + `Qe.buttonDisabled`) */}
-            <View style={{ marginLeft: isTouch ? 6 : 0 }}>
+            <View style={{ marginLeft: isTouch ? (buttonSize >= 34 ? 6 : 2) : 0 }}>
               {isBusy && !hasSendableInput ? (
                 <Pressable
+                  {...webTooltipProps(t("stopButton"))}
                   accessibilityRole="button"
                   accessibilityLabel={t("stopButton")}
                   onPress={onStop}
                   style={({ pressed }) => [
                     {
-                      width: discSize,
-                      height: discSize,
+                      width: buttonSize,
+                      height: buttonSize,
                       borderRadius: radiusV2.pill,
                       backgroundColor: tokens.dangerBg,
                       borderWidth: 1,
@@ -1800,6 +1958,7 @@ export function SidechatComposerBar({
                 </Pressable>
               ) : (
                 <Pressable
+                  {...webTooltipProps(submitButtonLabel)}
                   accessibilityRole="button"
                   accessibilityLabel={submitButtonLabel}
                   accessibilityHint={submitButtonHint}
@@ -1809,8 +1968,8 @@ export function SidechatComposerBar({
                   onLongPress={alternateSendAction && onAlternateSubmit ? onAlternateSubmit : undefined}
                   style={({ pressed }) => [
                     {
-                      width: discSize,
-                      height: discSize,
+                      width: buttonSize,
+                      height: buttonSize,
                       borderRadius: radiusV2.pill,
                       backgroundColor: colors.accent,
                       alignItems: "center",

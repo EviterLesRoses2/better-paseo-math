@@ -1,6 +1,6 @@
 {
   "name": "better-paseo-math",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "Better Paseo timeline and Tasks board with MathJax LaTeX and table line breaks, message edit/rewind and conversation forking, and unified Sidechat.",
   "license": "MIT",

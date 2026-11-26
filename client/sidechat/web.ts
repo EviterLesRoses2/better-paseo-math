@@ -15,6 +15,9 @@ type DomElement = {
   parentElement: DomElement | null;
   closest(selector: string): DomElement | null;
   dataset: Record<string, string | undefined>;
+  getAttribute?(name: string): string | null;
+  setAttribute?(name: string, value: string): void;
+  removeAttribute?(name: string): void;
 };
 
 type DomEvent = {
@@ -135,6 +138,20 @@ export function panelScopeProps(scopeId: string): Record<string, unknown> {
 
 export function popoverScopeProps(scopeId: string): Record<string, unknown> {
   return Platform.OS === "web" ? { dataSet: { sidechatPopoverScope: scopeId } } : {};
+}
+
+export function webTooltipProps(title: string | undefined): Record<string, unknown> {
+  if (Platform.OS !== "web" || !title) return {};
+  return {
+    ref: (node: unknown) => {
+      const el = node as DomElement | null;
+      if (el && typeof el.setAttribute === "function") {
+        if (el.getAttribute?.("title") !== title) {
+          el.setAttribute("title", title);
+        }
+      }
+    },
+  };
 }
 
 function defaultMonoForPlatform(): string {

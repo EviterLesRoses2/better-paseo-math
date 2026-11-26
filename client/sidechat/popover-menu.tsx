@@ -2,7 +2,7 @@ import { radiusV2, space, type ExtendedThemeTokens } from "../components/theme-t
 import { sidechatColors } from "./design";
 import { Icon, Modal, ScrollView } from "@getpaseo/plugin/client/ui";
 import { useEffect, useId, type ReactNode } from "react";
-import { Platform, Pressable, Text, useWindowDimensions, View } from "react-native";
+import { Platform, Pressable, Text, useWindowDimensions, View, type ViewStyle } from "react-native";
 import { pointerCursorStyle, popoverScopeProps, watchPopoverDismiss } from "./web";
 
 export interface MenuOptionTrailingAction {
@@ -38,6 +38,7 @@ export function PopoverMenu({
   uiFontSize,
   iconSize = 15,
   minWidth = 220,
+  containerStyle,
   trigger,
   headerAction,
   options,
@@ -54,6 +55,7 @@ export function PopoverMenu({
   uiFontSize: number;
   iconSize?: number;
   minWidth?: number;
+  containerStyle?: ViewStyle;
   trigger: ReactNode;
   headerAction?: ReactNode;
   options: readonly MenuOption[];
@@ -233,7 +235,10 @@ export function PopoverMenu({
   );
 
   return (
-    <View {...popoverScopeProps(scopeId)} style={{ position: "relative", zIndex: open ? 40 : 1 }}>
+    <View
+      {...popoverScopeProps(scopeId)}
+      style={[{ position: "relative", zIndex: open ? 40 : 1 }, containerStyle]}
+    >
       {trigger}
       {open && !useSheet ? (
         <View

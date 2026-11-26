@@ -5,6 +5,7 @@ import {
   BUILTIN_PROVIDER_SVGS,
   CLAUDE_ICON_SVG,
   CODEX_ICON_SVG,
+  estimateToolbarLabelWidth,
   formatContextUsageSummary,
   formatPaseoTokenCount,
   formatProviderLabel,
@@ -13,6 +14,7 @@ import {
   formatShortModeLabel,
   formatShortThinkingLabel,
   formatUsageResetCountdown,
+  resolveComposerToolbarLayout,
   resolveContextUsageRatio,
   resolveEffectiveProviderMode,
   resolveModeIconName,
@@ -196,4 +198,101 @@ it("Paseo context window popover token, cost, quota bar, and reset countdown for
 
   const multiDayReset = formatUsageResetCountdown("2026-11-26T22:30:00Z", nowMs, "en");
   expect(multiDayReset?.countdown).toBe("5d 19h");
+});
+
+it("resolveComposerToolbarLayout keeps all controls icon-only when narrow and reveals labels one by one as width grows", () => {
+  const baseInput = {
+    isTouch: false,
+    labelFontSize: 14,
+    hasModel: true,
+    modelLabel: "Gemini 4 Hybrid",
+    hasThinking: true,
+    thinkingLabel: "XHigh",
+    hasMode: true,
+    modeLabel: "Full Access",
+    toggleOptionCount: 0,
+    selectOptions: [
+      { key: "sandbox", label: "Workspace", allowLabel: true },
+      { key: "icon_only_opt", label: "Hidden", allowLabel: false },
+      { key: "network", label: "Online", allowLabel: true },
+    ],
+    hasMainContextToggle: true,
+  };
+
+  // Narrow sidechat panel (~345px panel => ~293px toolbar): pure icons only, zero text labels
+  const narrow = resolveComposerToolbarLayout({
+    ...baseInput,
+    selectOptions: [],
+    availableWidth: 293,
+  });
+  expect(narrow.showModelLabel).toBe(false);
+  expect(narrow.modelMaxWidth).toBeUndefined();
+  expect(narrow.showModeLabel).toBe(false);
+  expect(narrow.showThinkingLabel).toBe(false);
+  expect(narrow.visibleSelectLabelKeys).toEqual([]);
+
+  // Ultra-narrow panel tightens gaps and button size instead of overflowing
+  const ultraNarrow = resolveComposerToolbarLayout({
+    ...baseInput,
+    toggleOptionCount: 1,
+    selectOptions: [],
+    availableWidth: 220,
+  });
+  expect(ultraNarrow.showModelLabel).toBe(false);
+  expect(ultraNarrow.controlGap).toBeLessThan(4);
+  expect(ultraNarrow.iconButtonSize).toBeGreaterThanOrEqual(24);
+  expect(ultraNarrow.iconButtonSize).toBeLessThanOrEqual(28);
+
+  // Sweep widths from narrow to wide and verify monotonic progressive disclosure:
+  // 1) all icon-only -> 2) model only -> 3) model + mode -> 4) model + mode + thinking -> 5) select options one by one
+  const stagesSeen: string[] = [];
+  for (let w = 240; w <= 860; w += 10) {
+    const layout = resolveComposerToolbarLayout({ ...baseInput, availableWidth: w });
+    const stage = [
+      layout.showModelLabel ? "M" : "-",
+      layout.showModeLabel ? "P" : "-",
+      layout.showThinkingLabel ? "T" : "-",
+      layout.visibleSelectLabelKeys.join("+") || "-",
+    ].join("|");
+    if (stagesSeen[stagesSeen.length - 1] !== stage) {
+      stagesSeen.push(stage);
+    }
+
+    // Verify icon_only_opt (`allowLabel: false`) never shows a label
+    expect(layout.visibleSelectLabelKeys).not.toContain("icon_only_opt");
+
+    // Verify mathematical non-overlap invariant: total maximum rendered width never exceeds availableWidth
+    const leftCount = 1 + 1 + 1 + 1 + baseInput.selectOptions.length + 1;
+    let leftWidth =
+      layout.iconButtonSize + // plus
+      (layout.showModelLabel ? layout.modelMaxWidth! : layout.iconButtonSize) +
+      (layout.showThinkingLabel ? layout.thinkingMaxWidth! : layout.iconButtonSize) +
+      (layout.showModeLabel ? layout.modeMaxWidth! : layout.iconButtonSize) +
+      layout.iconButtonSize + // main context link
+      (leftCount - 1) * layout.controlGap;
+    for (const opt of baseInput.selectOptions) {
+      leftWidth += layout.visibleSelectLabelKeys.includes(opt.key)
+        ? layout.selectMaxWidths[opt.key]!
+        : layout.iconButtonSize;
+    }
+    const rightWidth = layout.iconButtonSize * 2 + layout.controlGap;
+    const totalMaxWidth = leftWidth + 4 + rightWidth;
+    if (w >= leftCount * 24 + 4 + 48) {
+      expect(totalMaxWidth, `toolbar should never overflow at width ${w}`).toBeLessThanOrEqual(w);
+    }
+  }
+
+  expect(stagesSeen).toEqual([
+    "-|-|-|-",
+    "M|-|-|-",
+    "M|P|-|-",
+    "M|P|T|-",
+    "M|P|T|sandbox",
+    "M|P|T|sandbox+network",
+  ]);
+
+  // CJK text estimation accounts for fullwidth characters
+  expect(estimateToolbarLabelWidth("完全访问", 14)).toBeGreaterThan(
+    estimateToolbarLabelWidth("Auto", 14),
+  );
 });

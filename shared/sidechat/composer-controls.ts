@@ -323,6 +323,256 @@ export function resolveToolbarDensity(
   return "full";
 }
 
+export interface ComposerToolbarSelectOptionInput {
+  key: string;
+  label: string;
+  allowLabel: boolean;
+}
+
+export interface ComposerToolbarLayoutInput {
+  availableWidth: number;
+  isTouch: boolean;
+  labelFontSize: number;
+  hasModel: boolean;
+  modelLabel: string;
+  hasThinking: boolean;
+  thinkingLabel: string;
+  hasMode: boolean;
+  modeLabel: string;
+  toggleOptionCount: number;
+  selectOptions: readonly ComposerToolbarSelectOptionInput[];
+  hasMainContextToggle: boolean;
+}
+
+export interface ComposerToolbarLayout {
+  controlGap: number;
+  iconButtonSize: number;
+  showModelLabel: boolean;
+  modelMaxWidth?: number;
+  showModeLabel: boolean;
+  modeMaxWidth?: number;
+  showThinkingLabel: boolean;
+  thinkingMaxWidth?: number;
+  visibleSelectLabelKeys: readonly string[];
+  selectMaxWidths: Readonly<Record<string, number>>;
+}
+
+/**
+ * Conservative single-line label width estimate calibrated against proportional
+ * sans, serif, and CJK interface fonts so toolbar labels never collide with
+ * trailing composer controls.
+ */
+export function estimateToolbarLabelWidth(text: string, fontSize: number): number {
+  const trimmed = text.trim();
+  if (!trimmed) return 0;
+  const size = Math.max(10, fontSize);
+  let units = 0;
+  for (let i = 0; i < trimmed.length; i += 1) {
+    const ch = trimmed[i]!;
+    const code = trimmed.charCodeAt(i);
+    if (code >= 0x2e80 || (code >= 0x1100 && code <= 0x11ff)) {
+      units += 1.02;
+    } else if (
+      code === 32 ||
+      ch === "i" ||
+      ch === "l" ||
+      ch === "I" ||
+      ch === "1" ||
+      ch === "." ||
+      ch === "," ||
+      ch === ":" ||
+      ch === ";" ||
+      ch === "!" ||
+      ch === "'" ||
+      ch === "|" ||
+      ch === "-" ||
+      ch === "/"
+    ) {
+      units += 0.3;
+    } else if (
+      ch === "W" ||
+      ch === "M" ||
+      ch === "m" ||
+      ch === "w" ||
+      ch === "G" ||
+      ch === "O" ||
+      ch === "Q" ||
+      ch === "D" ||
+      ch === "@" ||
+      ch === "%"
+    ) {
+      units += 0.78;
+    } else if (code >= 65 && code <= 90) {
+      units += 0.66;
+    } else if ((code >= 97 && code <= 122) || (code >= 48 && code <= 57)) {
+      units += 0.54;
+    } else {
+      units += 0.6;
+    }
+  }
+  return Math.ceil(units * size * 1.08) + 4;
+}
+
+/**
+ * Computes progressive toolbar label visibility from the actual toolbar row width.
+ * When space is tight, every control renders as an icon only (company/provider icon
+ * for the model, icons for permission mode, thinking effort, and provider options).
+ * As Sidechat grows wider, labels reveal one by one in priority order:
+ * model -> permission mode -> thinking effort -> provider select options.
+ */
+export function resolveComposerToolbarLayout(
+  input: ComposerToolbarLayoutInput,
+): ComposerToolbarLayout {
+  const defaultButtonSize = input.isTouch ? 36 : 28;
+  const minButtonSize = input.isTouch ? 30 : 24;
+  const defaultGap = input.isTouch ? 0 : 4;
+  const sectionGap = 4;
+  const safetyBuffer = 8;
+  const rightExtraMargin = input.isTouch ? 6 : 0;
+  const glyphSize = input.isTouch ? 18 : 15;
+  const caretSize = 12;
+
+  const leftCount =
+    1 +
+    (input.hasModel ? 1 : 0) +
+    (input.hasThinking ? 1 : 0) +
+    (input.hasMode ? 1 : 0) +
+    Math.max(0, input.toggleOptionCount) +
+    input.selectOptions.length +
+    (input.hasMainContextToggle ? 1 : 0);
+
+  const totalBaseWidth = (btnSize: number, gap: number): number => {
+    const leftWidth = leftCount * btnSize + Math.max(0, leftCount - 1) * gap;
+    const rightWidth = btnSize * 2 + gap + rightExtraMargin;
+    return leftWidth + rightWidth + sectionGap;
+  };
+
+  let controlGap = defaultGap;
+  let iconButtonSize = defaultButtonSize;
+
+  if (input.availableWidth > 0) {
+    if (totalBaseWidth(iconButtonSize, controlGap) > input.availableWidth) {
+      if (controlGap > 2) controlGap = 2;
+    }
+    if (totalBaseWidth(iconButtonSize, controlGap) > input.availableWidth) {
+      controlGap = 0;
+    }
+    if (totalBaseWidth(iconButtonSize, controlGap) > input.availableWidth) {
+      const totalIcons = leftCount + 2;
+      const budgetForIcons = Math.max(0, input.availableWidth - sectionGap - rightExtraMargin);
+      iconButtonSize = Math.max(
+        minButtonSize,
+        Math.min(defaultButtonSize, Math.floor(budgetForIcons / Math.max(1, totalIcons))),
+      );
+    }
+  }
+
+  const baseRequired = totalBaseWidth(iconButtonSize, controlGap) + safetyBuffer;
+  let remaining = input.availableWidth > 0 ? Math.max(0, input.availableWidth - baseRequired) : 0;
+
+  const modelLabeledChrome = 16 + (glyphSize - 1) + 5 + 5 + caretSize;
+  const pillLabeledChrome = 16 + glyphSize + 4 + 4 + caretSize;
+
+  const modelChromeDelta = Math.max(0, modelLabeledChrome - iconButtonSize);
+  const pillChromeDelta = Math.max(0, pillLabeledChrome - iconButtonSize);
+
+  const labelFontSize = Math.max(10, input.labelFontSize);
+  const minReadableModelText = Math.ceil(labelFontSize * 5.2);
+  const preferredModelTextCap = 160;
+  const maxExpandedModelTextCap = 220;
+  const secondaryLabelCap = 128;
+
+  let showModelLabel = false;
+  let allocatedModelText = 0;
+  const fullModelText = input.hasModel
+    ? estimateToolbarLabelWidth(input.modelLabel, labelFontSize)
+    : 0;
+  const preferredModelText = Math.min(fullModelText, preferredModelTextCap);
+
+  if (input.hasModel && fullModelText > 0) {
+    const minNeededText = Math.min(fullModelText, minReadableModelText);
+    if (remaining >= modelChromeDelta + minNeededText) {
+      showModelLabel = true;
+      allocatedModelText = Math.min(preferredModelText, remaining - modelChromeDelta);
+      remaining = Math.max(0, remaining - (modelChromeDelta + allocatedModelText));
+    }
+  }
+
+  const canRevealSecondary =
+    !input.hasModel || (showModelLabel && allocatedModelText >= preferredModelText);
+
+  let showModeLabel = false;
+  let modeMaxWidth: number | undefined;
+  if (canRevealSecondary && input.hasMode) {
+    const modeText = Math.min(
+      estimateToolbarLabelWidth(input.modeLabel, labelFontSize),
+      secondaryLabelCap,
+    );
+    if (modeText > 0 && remaining >= pillChromeDelta + modeText) {
+      showModeLabel = true;
+      modeMaxWidth = pillLabeledChrome + modeText;
+      remaining -= pillChromeDelta + modeText;
+    }
+  }
+
+  let showThinkingLabel = false;
+  let thinkingMaxWidth: number | undefined;
+  const canRevealThinking = canRevealSecondary && (!input.hasMode || showModeLabel);
+  if (canRevealThinking && input.hasThinking) {
+    const thinkingText = Math.min(
+      estimateToolbarLabelWidth(input.thinkingLabel, labelFontSize),
+      secondaryLabelCap,
+    );
+    if (thinkingText > 0 && remaining >= pillChromeDelta + thinkingText) {
+      showThinkingLabel = true;
+      thinkingMaxWidth = pillLabeledChrome + thinkingText;
+      remaining -= pillChromeDelta + thinkingText;
+    }
+  }
+
+  const visibleSelectLabelKeys: string[] = [];
+  const selectMaxWidths: Record<string, number> = {};
+  let canRevealNextSelect = canRevealThinking && (!input.hasThinking || showThinkingLabel);
+
+  for (const opt of input.selectOptions) {
+    if (!opt.allowLabel) continue;
+    if (!canRevealNextSelect) break;
+    const optText = Math.min(
+      estimateToolbarLabelWidth(opt.label, labelFontSize),
+      secondaryLabelCap,
+    );
+    if (optText > 0 && remaining >= pillChromeDelta + optText) {
+      visibleSelectLabelKeys.push(opt.key);
+      selectMaxWidths[opt.key] = pillLabeledChrome + optText;
+      remaining -= pillChromeDelta + optText;
+    } else {
+      canRevealNextSelect = false;
+    }
+  }
+
+  if (showModelLabel && fullModelText > allocatedModelText && remaining > 0) {
+    const extraCap = Math.min(fullModelText, maxExpandedModelTextCap) - allocatedModelText;
+    const bonus = Math.max(0, Math.min(extraCap, remaining));
+    allocatedModelText += bonus;
+    remaining -= bonus;
+  }
+
+  const modelMaxWidth = showModelLabel ? modelLabeledChrome + allocatedModelText : undefined;
+
+  return {
+    controlGap,
+    iconButtonSize,
+    showModelLabel,
+    modelMaxWidth,
+    showModeLabel,
+    modeMaxWidth,
+    showThinkingLabel,
+    thinkingMaxWidth,
+    visibleSelectLabelKeys,
+    selectMaxWidths,
+  };
+}
+
 function sanitizeSvgColor(color: string, fallback: string): string {
   const trimmed = color.trim();
   return /^[#a-zA-Z0-9(),.%\s-]+$/.test(trimmed) ? trimmed : fallback;

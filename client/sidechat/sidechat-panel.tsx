@@ -1786,7 +1786,7 @@ function SidechatSurface({
       {...surfaceProps(itemRootFont(preferences.uiFont), pluginRoot, panelScopeProps(panelScopeId))}
       onLayout={(e) => {
         const w = e.nativeEvent.layout.width;
-        if (w > 0 && Math.abs(w - panelWidth) > 4) setPanelWidth(w);
+        if (w > 0 && Math.abs(w - panelWidth) >= 1) setPanelWidth(w);
       }}
       style={{
         flex: 1,
@@ -1818,6 +1818,7 @@ function SidechatSurface({
             tokens={tokens}
             compact={compact}
             uiFontSize={appearance.uiBaseFontSize}
+            containerStyle={{ maxWidth: "100%", flexShrink: 1, minWidth: 0 }}
             options={threadMenuOptions}
             emptyLabel={t("noThreadsYet")}
             trigger={
@@ -1829,7 +1830,7 @@ function SidechatSurface({
                 style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
                   {
                     minHeight: controlHeight,
-                    maxWidth: Math.max(150, panelWidth - 110),
+                    maxWidth: "100%",
                     paddingHorizontal: space.sm,
                     borderRadius: radiusV2.block,
                     flexDirection: "row",
@@ -1876,7 +1877,7 @@ function SidechatSurface({
           />
         </View>
 
-        <View style={{ flexDirection: "row", alignItems: "center", gap: space.xs }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: space.xs, flexShrink: 0 }}>
           {promptOutline.length >= 2 ? (
             <PopoverMenu
               title={t("outlineTitle")}
