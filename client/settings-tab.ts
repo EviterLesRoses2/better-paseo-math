@@ -6,7 +6,7 @@ import { useSyncExternalStore } from "react";
  * Tasks half before it asks the host to open the page: settings routes carry
  * no params (Paseo `plugins/settings/index.tsx`).
  */
-export type SettingsTab = "display" | "tasks" | "version";
+export type SettingsTab = "display" | "tasks" | "sidechat" | "version";
 
 /** The page's settings screen id; the id predates the Tasks half and stays, since routes name it. */
 export const SETTINGS_SCREEN_ID = "chat-presentation";

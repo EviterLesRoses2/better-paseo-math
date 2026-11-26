@@ -2,6 +2,8 @@ Better Paseo Math 是基于 [RoundRedDot 的 Better Paseo](https://github.com/Ro
 
 支持正文和 Markdown 表格内的行内公式，以及单独成行的独立公式。回复完成后由 MathJax 渲染。回复仍在生成时，或遇到无法渲染的公式时，时间线会显示 LaTeX 源码。已经渲染的公式也可以切回源码。
 
+侧边对话可以在主 Agent 或工作区旁打开独立会话。可从输入栏、命令中心或通过 `/btw` 打开。在设置的「侧边对话」页可调整上下文和模型的默认行为。该功能改编自 [Norman-else 的 Better Sidechat](https://github.com/Norman-else/paseo-better-sidechat/tree/284f9e00)。
+
 ## 使用条件
 
 需要 Paseo 0.14.0 或更高版本，且守护进程所在机器需要 Node.js 22 或更高版本及 npm。请启用插件的 Markdown 渲染，并同时只启用一个助手回复渲染插件。如果正在使用 Better Paseo 或 Math Renderer Plus 渲染回复，请先停用它，再启用 Better Paseo Math。

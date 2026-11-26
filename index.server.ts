@@ -1,3 +1,4 @@
+import { registerSidechatServer } from "./server/sidechat/register";
 import { open, stat, type FileHandle } from "node:fs/promises";
 import type { Stats } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
@@ -467,6 +468,7 @@ function tokenize(
 }
 
 export default function contribute(server: PluginServerContext) {
+  const closeSidechat = registerSidechatServer(server);
   let mathRenderer: Promise<ReturnType<typeof createMathRenderer>> | undefined;
   server.handle(renderMath, async (input): Promise<RenderOutput> => {
     try {
@@ -634,6 +636,7 @@ export default function contribute(server: PluginServerContext) {
   // The highlighter and the cache sit at module scope on purpose, shared by
   // every contribution, so a single teardown must not dispose them.
   return async () => {
+    await closeSidechat();
     const renderer = await mathRenderer?.catch(() => undefined);
     renderer?.dispose();
   };

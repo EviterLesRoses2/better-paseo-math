@@ -2,6 +2,8 @@ Better Paseo Math is an independent fork of [Better Paseo by RoundRedDot](https:
 
 Use inline formulas in prose or Markdown table cells, and display formulas on their own lines. Completed replies render formulas with MathJax. The timeline shows the original LaTeX while a reply streams or when a formula cannot be rendered. You can switch a rendered formula back to its source.
 
+Sidechat opens a separate conversation alongside a main agent or workspace. Open it from the composer, the Command Center, or with `/btw`. Use the **Sidechat** tab in Settings to choose context and model defaults. Sidechat is adapted from [Better Sidechat by Norman-else](https://github.com/Norman-else/paseo-better-sidechat/tree/284f9e00).
+
 ## Setup
 
 Use Paseo 0.14.0 or later with Node.js 22 or later and npm on the daemon host. Keep the plugin's Markdown rendering enabled to see formulas. Enable one assistant-reply renderer at a time. If Better Paseo or Math Renderer Plus already handles your replies, disable it before enabling Better Paseo Math.
