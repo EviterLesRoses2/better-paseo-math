@@ -1,3 +1,4 @@
+import { todoTaskListData } from "./components/todo-task-list-data";
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Platform, StyleSheet, View, type LayoutChangeEvent, type ViewStyle } from "react-native";
 import { useAgent, usePaseo, useRpc } from "@getpaseo/plugin/client";
@@ -14,7 +15,7 @@ import { observeReasoning, observedDurationMs } from "./reasoning/observed";
 import { useDisclosure } from "./state/disclosure-store";
 import { TaskList, TaskListPanel, useTaskListPanel } from "./components/task-list";
 import { TaskActivityRow } from "./components/task-activity-row";
-import { HOST_ITEM_GAP, deriveTodoActivities, todoTaskStatus, useLatestTodoItems, useMatchingTodo, useTodoTimeline, type EmptyGapTakeBack, type TodoTask } from "./state/todo-timeline";
+import { HOST_ITEM_GAP, deriveTodoActivities, useLatestTodoItems, useMatchingTodo, useTodoTimeline, type EmptyGapTakeBack, type TodoTask } from "./state/todo-timeline";
 import { grokTodoItems } from "./tools/activity";
 import { ConversationDialog, type ConversationDialogKind } from "./components/conversation-actions";
 import { ToolbarButton } from "./ui/toolbar-button";
@@ -47,7 +48,7 @@ import { useHasEntryAfter, useNextEntryIsRow, useTimelineEntry, useTimelineToolG
 import { useHostStacksRows } from "./host-row-gap";
 import { BlockPlacementContext, type BlockKind } from "./details/contracts";
 import { DetailsHostSlot } from "./details/shell/details-host-slot";
-import type { TaskListData, TaskItemData, NoticeCalloutData } from "../shared/contracts";
+import type { NoticeCalloutData } from "../shared/contracts";
 import { revealPathRpc } from "../shared/file-rpc";
 import { revealWithSetting } from "./i18n/file-open-error";
 import { isImagePath, useImageFile } from "./image-file";
@@ -394,27 +395,6 @@ function LiveReasoningRendererBody({
 function emptyGapStyle({ above, below }: EmptyGapTakeBack): ViewStyle | undefined {
   if (above === 0 && below === 0) return undefined;
   return { ...(above > 0 ? { marginTop: -above } : null), ...(below > 0 ? { marginBottom: -below } : null) };
-}
-
-/** A host todo list as the checklist draws it. */
-function todoTaskListData(items: readonly TodoTask[]): TaskListData {
-  const tasks: TaskItemData[] = (items || []).map((task, idx) => {
-    const status = todoTaskStatus(task);
-    const text = typeof task.text === "string" ? task.text : "Untitled task";
-    return {
-      id: typeof task.id === "string" ? task.id : `todo-${idx}`,
-      // As Paseo does: the task in progress reads as what is happening now.
-      title: status === "in_progress" && typeof task.activeForm === "string" && task.activeForm ? task.activeForm : text,
-      phase: "Execution",
-      status,
-    };
-  });
-
-  return {
-    id: "live-todo",
-    phaseName: "Checklist Progress",
-    tasks,
-  };
 }
 
 function LiveTodoRendererBody({

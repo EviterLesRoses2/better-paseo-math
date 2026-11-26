@@ -1,3 +1,4 @@
+import { contributeSidechat } from "./client/sidechat/contribute";
 import type { PluginClientContext, PluginTimelineTransformerContribution } from "@getpaseo/plugin/client";
 import { z } from "zod";
 import { contributeSettingsScreen } from "./client/settings-screen";
@@ -322,6 +323,7 @@ export default function contribute(client: PluginClientContext) {
   // The Tasks board: a screen, its sidebar entry and a Command Center item;
   // its options are the Tasks half of the settings page (docs/tasks-board.md).
   const removeTasks = contributeTasks(client);
+  const removeSidechat = contributeSidechat(client);
 
   // Bench builds send this load's timing marks to the daemon machine.
   const stopLoadTrace = scheduleLoadTraceDump(client);
@@ -331,6 +333,7 @@ export default function contribute(client: PluginClientContext) {
     stopLoadTrace();
     stopPreferenceRead();
     stopPreferenceWatch();
+    removeSidechat();
     removeTasks();
     removeConversationCommands();
     removeComposerBridge();

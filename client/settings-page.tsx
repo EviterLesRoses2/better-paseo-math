@@ -1,3 +1,4 @@
+import { SidechatSettingsPanel } from "./sidechat/sidechat-settings-panel";
 import { UPDATE_INDICATOR_COLOR } from "./ui/update-indicator";
 import { useRpc } from "@getpaseo/plugin/client";
 import { updateCheckRpc } from "../shared/update-check";
@@ -1346,6 +1347,7 @@ export function BetterPaseoSettingsPage({ theme, layout, host }: PluginSurfacePr
               options={[
                 { value: "display", label: t.tabDisplay },
                 { value: "tasks", label: t.tabTasks },
+                { value: "sidechat", label: t.tabSidechat },
                 { value: "version", label: t.tabVersion, badge: updateAvailable ? t.versionBadge : undefined },
               ]}
               onChange={setSettingsTab}
@@ -1384,6 +1386,8 @@ export function BetterPaseoSettingsPage({ theme, layout, host }: PluginSurfacePr
 
       {tab === "version" ? (
         <VersionSection key={host.id} look={look} language={resolveLanguage(preferences.language)} version={version} autoUpdateCheck={preferences.autoUpdateCheck} native={native} agents={agents} host={host} knownUpdate={knownUpdate} />
+      ) : tab === "sidechat" ? (
+        <SidechatSettingsPanel key={host.id} look={look} theme={theme} />
       ) : tab === "tasks" ? (
         <TasksSettingsPanel look={look} theme={theme} side={side} hostId={host?.id} />
       ) : side ? (

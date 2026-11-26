@@ -84,11 +84,13 @@ export function Segmented<T extends string>({
   label,
   contentWidth = false,
   wrap = false,
+  disabled = false,
 }: {
   value: T | null;
   options: ReadonlyArray<{ value: T; label: string; badge?: string }>;
   contentWidth?: boolean;
   wrap?: boolean;
+  disabled?: boolean;
   onChange(value: T): void;
   look: PageLook;
   label: string;
@@ -111,7 +113,8 @@ export function Segmented<T extends string>({
           <Pressable
             key={option.value}
             accessibilityRole="radio"
-            accessibilityState={{ selected, checked: selected }}
+            accessibilityState={{ selected, checked: selected, disabled }}
+            disabled={disabled}
             aria-checked={selected}
             accessibilityLabel={option.badge ? `${option.label}, ${option.badge}` : option.label}
             hitSlop={compact ? { top: 6, bottom: 6 } : undefined}
