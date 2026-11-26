@@ -1,8 +1,8 @@
-Better Paseo Math 是基于 [RoundRedDot 的 Better Paseo](https://github.com/RoundRedDot/better-paseo) 1.6.2 开发的独立分支。它保留原版的任务看板与紧凑聊天时间线，并增加了 MathJax LaTeX 公式渲染、Markdown 表格与行内 `<br>` 换行渲染、已发送消息重新编辑覆盖、任意节点创建对话副本，以及视觉风格统一的侧边对话（Sidechat）。
+Better Paseo Math 是基于 [RoundRedDot 的 Better Paseo](https://github.com/RoundRedDot/better-paseo) 1.6.2 开发的独立分支。它保留原版的任务看板与紧凑聊天时间线，并增加了 MathJax LaTeX 公式渲染、Markdown 表格与行内 `<br>` 换行渲染、消息编辑和回退、对话分叉，以及视觉风格统一的侧边对话（Sidechat）。
 
 支持正文和 Markdown 表格内的行内公式、单独成行的独立公式，以及表格单元格内的 `<br>` 多行换行。回复完成后由内置 MathJax 在本地渲染公式；回复仍在生成或公式无法渲染时显示 LaTeX 源码，已渲染的公式也可切回源码查看。
 
-在任意已发送的用户消息上，可重新编辑并覆盖后续对话，或将消息撤回至输入框继续修改。支持原生回退的模型服务商会在原会话内直接回退（支持时也可选择回退文件）；不支持原地回退的服务商会在同一工作区基于该消息之前的历史创建替代分支，并可自动归档被覆盖的原对话。在任意用户消息或助手回复上、命令中心中或通过 `/fork`，都可以从对应节点创建一个保留此前上下文的对话副本。
+当时间线提供的附件信息不完整时（包括 Paseo 0.17.4），主聊天的提问使用 Paseo 原生气泡，保留 Paseo 可显示的图片预览。在命令中心选择「重新编辑上一条消息」，可以覆盖重发或将上一条提问放回输入框。支持原生回退的服务商可在原会话中回退，文件回退视服务商能力而定。其他服务商会在同一工作区创建替代分支，可归档原对话。可从助手回复、命令中心或通过 `/fork` 创建对话副本。Paseo 确认提问没有附件时，增强气泡会显示该提问的编辑和分叉按钮。
 
 侧边对话可在主 Agent 或工作区旁开启独立并行会话，并统一复用 Better Paseo Math 的主题、字体、Markdown 与 MathJax 公式渲染以及工具和思考卡片。可通过输入框快捷入口、命令中心或 `/btw`、`/sidechat` 打开，并在插件设置的「侧边对话」标签页调整上下文与模型默认项。侧边对话功能改编自 [Norman-else 的 Better Sidechat](https://github.com/Norman-else/paseo-better-sidechat/tree/284f9e00)。
 

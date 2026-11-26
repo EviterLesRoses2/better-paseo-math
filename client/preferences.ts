@@ -132,14 +132,7 @@ export interface EnhancerPreferences {
   /** Draw the chat with the plugin. Off leaves every chat row to Paseo; the Tasks board does not depend on it. */
   chatEnabled: boolean;
   timelineLevel: TimelineLevel;
-  /**
-   * Paseo maps a stream item to the plugin timeline item before any transformer
-   * runs, and that mapping carries only the text. Pasted images therefore never
-   * reach plugin code, so the enhanced bubble cannot draw them. Rewind is the
-   * host's menu when this Paseo exports one (`host-rewind.ts`); the SDK still
-   * exposes neither the rewind call nor which modes the provider supports.
-   * Prompts stay with the host by default, and the enhanced bubble is an opt-in.
-   */
+  /** Enhance prompt rows when Paseo confirms that they have no attachments. */
   enhancedUserBubble: boolean;
   /**
    * The Copy / Add to chat bar that follows a highlight. Web and desktop only:

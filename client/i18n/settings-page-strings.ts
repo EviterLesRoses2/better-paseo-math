@@ -161,7 +161,7 @@ const en = {
   sectionMessages: "Messages",
   bubbleTitle: "Enhanced prompt bubble",
   bubbleDescription:
-    "Show token usage and actions to copy, edit, or fork a prompt. Supported pasted images are displayed; other attachments stay with Paseo.",
+    "Show token usage and prompt actions when Paseo confirms the prompt has no attachments. Otherwise, Paseo renders the prompt and its attachments.",
   markdownTitle: "Plugin markdown for replies",
   liveUiTitle: "Let genui render interactive replies",
   liveUiDescription: "Replies with ui or app code blocks are handed to genui or another renderer. Without one, Paseo shows ordinary Markdown without the plugin reply footer.",
@@ -428,7 +428,7 @@ const zh: SettingsStrings = {
 
   sectionMessages: "消息",
   bubbleTitle: "增强提问气泡",
-  bubbleDescription: "显示 token 用量，并提供复制、编辑和创建副本操作；支持的粘贴图片一并显示，其他附件交给 Paseo。",
+  bubbleDescription: "Paseo 确认提问没有附件时，显示 token 用量及复制、编辑和分叉操作。其他提问及其附件由 Paseo 显示。",
   markdownTitle: "回复使用插件 Markdown",
   liveUiTitle: "交给 genui 渲染交互式回复",
   liveUiDescription: "包含 ui 或 app 代码块的回复会交给 genui 等渲染器。未安装这类插件时，Paseo 会显示普通 Markdown，且没有插件的回复信息栏。",

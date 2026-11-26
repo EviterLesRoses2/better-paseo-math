@@ -11,7 +11,7 @@
 | Rows overlap, or a reply overlaps the row below | Turn off **Tight rows** or **Tight reply**. |
 | A reply needs a host image or Paseo's file links | Turn off **Plugin markdown for replies**. |
 | A selected table cell has no **Add to chat** action on a phone | Paseo does not yet let plugins write into the composer; **Copy selected** is always available. |
-| A prompt with an attachment should use Paseo's renderer | Turn off **Enhanced prompt bubble**. Attachments the plugin cannot render stay with Paseo automatically. |
+| An image is missing from a prompt in the main chat | Paseo draws prompts with attachments or incomplete attachment information. On Paseo 0.17.4, previews are available in the sending client while it retains the attachment. A full reload can lose the link between the prompt and the image. |
 | Ctrl/Cmd+F misses old messages | Scroll up to load them, or hand replies back to Paseo as above. |
 | Token figures are missing on an old turn | The plugin's server records usage for every completed turn from when it was installed; turns before that, failed or cancelled turns, and turns whose provider reported no figures have none. The latest turn can also recover usage from the daemon's snapshot. |
 | Pinched text in the drawer is too large or small on another phone | The size is shared by every client of the daemon; pinch again, or press **Reset** on the badge. |

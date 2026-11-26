@@ -84,6 +84,7 @@ const flush = async () => {
 };
 const reply = { item: { type: "assistant_message", text: "Hello" }, phase: "complete" };
 const prompt = { item: { type: "user_message", text: "Hi", messageId: "m1" }, phase: "complete" };
+const textOnlyPrompt = { ...prompt, item: { ...prompt.item, images: [], attachments: [] } };
 
 async function load() {
   vi.resetModules();
@@ -165,10 +166,43 @@ describe("preferences read while the plugin loads", () => {
     expect(again!.transform(reply)).toBeUndefined();
     // The record leaves the enhanced prompt bubble enabled by default.
     expect(preferences.DEFAULT_PREFERENCES.enhancedUserBubble).toBe(true);
-    expect(plugin.active("omp-enhanced-user-message")[0]!.transform(prompt)).toBeDefined();
+    expect(plugin.active("omp-enhanced-user-message")[0]!.transform(textOnlyPrompt)).toBeDefined();
 
     cleanup();
     expect(plugin.registrations.every((entry) => entry.removed)).toBe(true);
+  });
+
+  it("preserves the native prompt whenever attachments may be present", async () => {
+    const { contribute, preferences } = await load();
+    const plugin = fakeClient(() => Promise.resolve({ status: "ready", revision: "r1", values: {} }));
+    const cleanup = contribute(plugin.client as never);
+    await flush();
+    const transform = plugin.active("omp-enhanced-user-message")[0]!.transform;
+
+    // Paseo 0.17.4 sends these same fields for plain text and text with a local image.
+    expect(transform({
+      ...prompt,
+      item: { ...prompt.item, text: "Can you see this image?", clientMessageId: "c1" },
+    })).toBeUndefined();
+    expect(transform({ ...prompt, item: { ...prompt.item, text: "" } })).toBeUndefined();
+    expect(transform({ ...prompt, item: { ...prompt.item, images: [] } })).toBeUndefined();
+    expect(transform({ ...prompt, item: { ...prompt.item, attachments: [] } })).toBeUndefined();
+    expect(transform({
+      ...prompt,
+      item: { ...textOnlyPrompt.item, images: [{ id: "image-1", mimeType: "image/png" }] },
+    })).toBeUndefined();
+    expect(transform({
+      ...prompt,
+      item: { ...textOnlyPrompt.item, attachments: [{ type: "file", name: "notes.txt" }] },
+    })).toBeUndefined();
+    expect(transform({ ...prompt, item: { ...textOnlyPrompt.item, attachments: null } })).toBeUndefined();
+
+    expect(transform(textOnlyPrompt)).toEqual({ items: [{
+      type: "plugin", kind: "omp-user-message", version: 1, data: { text: "Hi", messageId: "m1" },
+    }] });
+    preferences.updateEnhancerPreferences({ enhancedUserBubble: false });
+    expect(plugin.active("omp-enhanced-user-message")[0]!.transform(textOnlyPrompt)).toBeUndefined();
+    cleanup();
   });
 
   it("reprojects history when the timeline level changes", async () => {

@@ -6,7 +6,6 @@ import { PluginUpdateIndicator } from "./client/plugin-update-indicator";
 import { removeEmbeddedFonts, setEmbeddedFontLoader } from "./client/components/embed-fonts";
 import { installChatFind } from "./client/components/chat-find";
 import { installPointerFocusRing } from "./client/components/focus-ring";
-import { extractPromptImages } from "./client/prompt-images";
 import { getEnhancerPreferences } from "./client/preferences";
 import { followPreference } from "./client/state/follow-preference";
 import { readPreferencesAtStartup, watchPreferenceChanges } from "./client/state/preference-sync-slot";
@@ -200,14 +199,20 @@ export default function contribute(client: PluginClientContext) {
       query: { itemType: "user_message" },
       transform({ item }) {
         if (item.type !== "user_message") return undefined;
-        // The host strips images while mapping the stream item, so an enhanced
-        // bubble would silently swallow a pasted screenshot. The preference lets
-        // the reader trade the bubble for the host's image previews.
         if (!getEnhancerPreferences().enhancedUserBubble) return undefined;
-        const images = extractPromptImages(item);
-        // Replacing the item drops whatever this renderer does not carry, so a
-        // message with an attachment it cannot show is left to the host.
-        if (images.hasUnrenderable) return undefined;
+        // Paseo 0.17.4 projects prompts with and without local attachments to
+        // the same SDK item. Require explicit empty lists before replacing the
+        // native row, which owns attachment previews and the image lightbox.
+        const { images, attachments } = item as typeof item & {
+          images?: unknown;
+          attachments?: unknown;
+        };
+        if (
+          !Array.isArray(images) || images.length > 0 ||
+          !Array.isArray(attachments) || attachments.length > 0
+        ) {
+          return undefined;
+        }
         // Both message ids ride along so the renderer can mark the card with
         // the id the chat outline scrolls to (see `prompt-anchor.ts`).
         // Replacing the item leaves the outline nothing to find otherwise.
@@ -219,7 +224,6 @@ export default function contribute(client: PluginClientContext) {
               version: 1,
               data: toJsonValue({
                 text: item.text,
-                ...(images.uris.length > 0 ? { images: images.uris } : {}),
                 ...(item.messageId ? { messageId: item.messageId } : {}),
                 ...(item.clientMessageId ? { clientMessageId: item.clientMessageId } : {}),
               }),

@@ -29,7 +29,7 @@
   "translations": {
     "zh-CN": {
       "name": "Better Paseo Math",
-      "description": "保留 Better Paseo 的任务看板与紧凑时间线，支持 LaTeX 公式与表格换行渲染、已发消息重新编辑覆盖、任意节点创建对话副本，以及统一风格的侧边对话。"
+      "description": "保留 Better Paseo 的任务看板与紧凑时间线，支持 LaTeX 公式与表格换行渲染、已发消息重新编辑覆盖、创建对话副本，以及统一风格的侧边对话。"
     }
   }
 }

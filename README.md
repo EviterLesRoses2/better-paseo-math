@@ -5,18 +5,20 @@
 Better Paseo Math is an independent fork of [Better Paseo by RoundRedDot](https://github.com/RoundRedDot/better-paseo) 1.6.2. It keeps the Tasks board and compact chat timeline while adding MathJax LaTeX rendering, HTML `<br>` table line breaks, message edit/rewind and conversation forking, and a unified Sidechat panel.
 
 - **LaTeX & Markdown tables**: Inline math (`$...$` and `\(...\)`) in prose and table cells, display math (`$$...$$`, `\[...\]`, fenced `math`), local daemon MathJax rendering with source toggle, and `<br>` / `<br/>` / `<br />` multi-line rendering inside Markdown tables with accurate per-line column widths.
-- **Edit sent messages & overwrite turns**: Edit any sent prompt to resend and overwrite subsequent turns, or rewind it back into the composer. Uses Paseo's native `agent.rewind.request` (conversation / files / both) when supported by the provider, and automatically falls back to a same-workspace replacement branch with prior context (optionally archiving the superseded thread) on providers without native rewind.
-- **Fork conversations from any node**: Create a duplicate conversation from any user message or assistant reply, via Command Center, or with `/fork`, preserving history up to that exact node with a collapsible origin card and immediate tab focus.
+- **Edit sent messages & overwrite turns**: Use **Edit last sent message** in the Command Center to resend the latest prompt or restore it to the composer. Uses Paseo's native rewind when supported by the provider. Other providers create a replacement branch in the same workspace with prior context and can archive the superseded chat.
+- **Fork conversations**: Fork from an assistant reply, the Command Center, or `/fork`, preserving history up to the selected point.
 - **Unified Sidechat**: Full multi-provider Sidechat adapted from [Norman-else/paseo-better-sidechat](https://github.com/Norman-else/paseo-better-sidechat) (`284f9e00`), styled with Better Paseo Math's theme tokens, fonts, `MarkdownView` + MathJax renderer, tool/reasoning/todo/notice cards, and a unified **Sidechat** settings tab.
 
 ![Inline, table-cell, and display formulas in a sample conversation](assets/marketplace/formula-rendering.png)
 
+Main-chat prompts with attachments or incomplete attachment information use Paseo's own bubble. This preserves Paseo's available image previews. The plugin adds per-prompt edit and fork buttons when the timeline confirms the prompt has no attachments and the enhanced bubble is enabled.
+
 ## Installation
 
-The daemon host needs Paseo 0.14.0 or later (0.16.0+ for Sidechat panels and composer integration), Node.js 22 or later, and npm. To install release `v1.1.1` directly from GitHub:
+The daemon host needs Paseo 0.14.0 or later (0.16.0+ for Sidechat panels and composer integration), Node.js 22 or later, and npm. To install release `v1.1.2` directly from GitHub:
 
 ```sh
-paseo plugin add git:EviterLesRoses2/better-paseo-math --ref v1.1.1
+paseo plugin add git:EviterLesRoses2/better-paseo-math --ref v1.1.2
 ```
 
 Keep the plugin's Markdown rendering enabled. Disable Better Paseo, Math Renderer Plus, or standalone Better Sidechat before enabling this plugin to avoid conflicting reply renderers or duplicate `/btw` commands.
