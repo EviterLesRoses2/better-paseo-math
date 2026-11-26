@@ -12,6 +12,7 @@ import { LocalLink } from "./local-link";
 import { ProseSpan } from "../../../ui/prose-text";
 import type { InlineMathToken } from "../inline-math-token";
 import { InlineMath } from "./inline-math";
+import { isInlineHtmlLineBreak } from "../lex";
 
 /** The visible text of an inline run, for measuring and summaries. */
 export function inlineText(tokens: readonly Token[] | undefined): string {
@@ -30,7 +31,7 @@ export function inlineText(tokens: readonly Token[] | undefined): string {
         out += "\n";
         break;
       case "html":
-        out += token.raw;
+        out += isInlineHtmlLineBreak(token) ? "\n" : token.raw;
         break;
       case "image":
         out += token.text;
@@ -84,8 +85,11 @@ export function renderInline(
           : token.raw);
         return;
       case "html":
-        // HTML is shown as the source the author wrote, never interpreted.
-        out.push(context.renderText ? context.renderText(token.raw) : token.raw);
+        if (isInlineHtmlLineBreak(token)) {
+          out.push("\n");
+        } else {
+          out.push(context.renderText ? context.renderText(token.raw) : token.raw);
+        }
         return;
       case "codespan":
         if (isPathLike(token.text)) {
@@ -220,34 +224,53 @@ export function textWidth(text: string, size: number, ratio: number): number {
 }
 
 /**
- * Estimated width of an inline run. A chip is wider than the text it holds:
+ * Estimated width of the longest line. A chip is wider than the text it holds:
  * the code face is wider than the UI face and the chip carries padding of its
  * own, so code is measured on its own terms.
  */
 export function inlineWidth(tokens: readonly Token[] | undefined, size: number, ratio: number): number {
-  if (!tokens) return 0;
-  let width = 0;
-  for (const token of tokens) {
-    switch (token.type) {
-      case "text":
-        width += token.tokens
-          ? inlineWidth(token.tokens, size, ratio)
-          : textWidth(softBreaks(decodeEntities(token.text)), size, ratio);
-        break;
-      case "codespan":
-        width += textWidth(token.text, size, CHAR_RATIO_MONO) + CODE_CHIP_PADDING * 2;
-        break;
-      case "escape":
-      case "image":
-        width += textWidth(token.text, size, ratio);
-        break;
-      default: {
-        const children = (token as Tokens.Generic).tokens;
-        width += children
-          ? inlineWidth(children, size, ratio)
-          : textWidth(token.raw ?? "", size, ratio);
+  let widest = 0;
+  let line = 0;
+  const nextLine = () => {
+    widest = Math.max(widest, line);
+    line = 0;
+  };
+  const measureText = (text: string) => {
+    text.split("\n").forEach((part, index) => {
+      if (index > 0) nextLine();
+      line += textWidth(part, size, ratio);
+    });
+  };
+  // Nested formatting shares the surrounding line, including either side of a break.
+  const measureRuns = (runs: readonly Token[]) => {
+    for (const token of runs) {
+      switch (token.type) {
+        case "br":
+          nextLine();
+          break;
+        case "html":
+          if (isInlineHtmlLineBreak(token)) nextLine();
+          else measureText(token.raw);
+          break;
+        case "text":
+          if (token.tokens) measureRuns(token.tokens);
+          else measureText(decodeEntities(token.text));
+          break;
+        case "codespan":
+          line += textWidth(token.text, size, CHAR_RATIO_MONO) + CODE_CHIP_PADDING * 2;
+          break;
+        case "escape":
+        case "image":
+          measureText(token.text);
+          break;
+        default: {
+          const children = (token as Tokens.Generic).tokens;
+          if (children) measureRuns(children);
+          else measureText(token.raw ?? "");
+        }
       }
     }
-  }
-  return width;
+  };
+  if (tokens) measureRuns(tokens);
+  return Math.max(widest, line);
 }

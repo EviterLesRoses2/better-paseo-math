@@ -46,6 +46,13 @@ describe("native prose source", () => {
     expect(source.markdown).toBe("\\<b\\>literal\\</b\\> \\& \\# title \\<b\\>x\\</b\\>");
     expect(escapeProse("# heading\n- item\n```code\n[link](x)")).toBe("\\# heading\n\\- item\n\\`\\`\\`code\n\\[link\\]\\(x\\)");
   });
+  it("keeps HTML breaks inside native formatting and links, including empty lines", () => {
+    const source = nativeProseSource(inline(
+      "A<BR>[**B<Br   /><br>C**](https://example.com)<br/>D `<br>` &lt;br&gt;",
+    ));
+    expect(source.markdown).toBe("A&#10;[**B&#10;&#10;C**](bc-prose://0)&#10;D `<br>` \\<br\\>");
+    expect(source.links).toEqual([{ kind: "url", target: "https://example.com" }]);
+  });
   it("retains backticks and boundary spaces in code spans", () => {
     expect(nativeProseSource([{ type: "codespan", raw: "", text: "`x`" }]).markdown).toBe("`` `x` ``");
     expect(nativeProseSource([{ type: "codespan", raw: "", text: " x " }]).markdown).toBe("`  x  `");
@@ -108,6 +115,12 @@ describe("iOS Markdown prose", () => {
         strong: { fontWeight: "600" }, code: { fontFamily: tokens.fontMono } } });
     expect(renderer.root.findAll((node) => String(node.type) === "Text")).toHaveLength(0);
     await act(async () => renderer.unmount());
+  });
+  it("passes inline breaks to the iOS parser without creating new Markdown blocks", async () => {
+    const renderer = await render("A<BR><br/>B\n\n- C<Br />D");
+    try {
+      expect(native(renderer).map((node) => node.props.markdown)).toEqual(["A&#10;&#10;B", "- C&#10;D"]);
+    } finally { await act(async () => renderer.unmount()); }
   });
   it("covers headings, lists and quotes without replacing the table's cell renderer", async () => {
     const renderer = await render("# Heading\n\n- list **body**\n\n> quoted body\n\n| col |\n| --- |\n| cell |");
