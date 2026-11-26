@@ -182,7 +182,7 @@ export class PaseoDaemonRpcLite {
         // Send Paseo `hello`
         const helloPayload: Record<string, unknown> = {
           type: "hello",
-          clientId: `paseo-better-sidechat-${randomUUID().slice(0, 8)}`,
+          clientId: `better-paseo-math-sidechat-${randomUUID().slice(0, 8)}`,
           clientType: "cli",
           protocolVersion: 1,
           capabilities: {},

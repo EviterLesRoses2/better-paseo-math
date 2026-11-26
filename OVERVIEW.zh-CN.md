@@ -1,15 +1,17 @@
-Better Paseo Math 是基于 [RoundRedDot 的 Better Paseo](https://github.com/RoundRedDot/better-paseo) 1.6.2 开发的独立分支。它保留原版的任务看板和紧凑聊天时间线，并为助手回复增加 LaTeX 公式渲染。
+Better Paseo Math 是基于 [RoundRedDot 的 Better Paseo](https://github.com/RoundRedDot/better-paseo) 1.6.2 开发的独立分支。它保留原版的任务看板与紧凑聊天时间线，并增加了 MathJax LaTeX 公式渲染、Markdown 表格与行内 `<br>` 换行渲染、已发送消息重新编辑覆盖、任意节点创建对话副本，以及视觉风格统一的侧边对话（Sidechat）。
 
-支持正文和 Markdown 表格内的行内公式，以及单独成行的独立公式。回复完成后由 MathJax 渲染。回复仍在生成时，或遇到无法渲染的公式时，时间线会显示 LaTeX 源码。已经渲染的公式也可以切回源码。
+支持正文和 Markdown 表格内的行内公式、单独成行的独立公式，以及表格单元格内的 `<br>` 多行换行。回复完成后由内置 MathJax 在本地渲染公式；回复仍在生成或公式无法渲染时显示 LaTeX 源码，已渲染的公式也可切回源码查看。
 
-侧边对话可以在主 Agent 或工作区旁打开独立会话。可从输入栏、命令中心或通过 `/btw` 打开。在设置的「侧边对话」页可调整上下文和模型的默认行为。该功能改编自 [Norman-else 的 Better Sidechat](https://github.com/Norman-else/paseo-better-sidechat/tree/284f9e00)。
+在任意已发送的用户消息上，可重新编辑并覆盖后续对话，或将消息撤回至输入框继续修改。支持原生回退的模型服务商会在原会话内直接回退（支持时也可选择回退文件）；不支持原地回退的服务商会在同一工作区基于该消息之前的历史创建替代分支，并可自动归档被覆盖的原对话。在任意用户消息或助手回复上、命令中心中或通过 `/fork`，都可以从对应节点创建一个保留此前上下文的对话副本。
+
+侧边对话可在主 Agent 或工作区旁开启独立并行会话，并统一复用 Better Paseo Math 的主题、字体、Markdown 与 MathJax 公式渲染以及工具和思考卡片。可通过输入框快捷入口、命令中心或 `/btw`、`/sidechat` 打开，并在插件设置的「侧边对话」标签页调整上下文与模型默认项。侧边对话功能改编自 [Norman-else 的 Better Sidechat](https://github.com/Norman-else/paseo-better-sidechat/tree/284f9e00)。
 
 ## 使用条件
 
-需要 Paseo 0.14.0 或更高版本，且守护进程所在机器需要 Node.js 22 或更高版本及 npm。请启用插件的 Markdown 渲染，并同时只启用一个助手回复渲染插件。如果正在使用 Better Paseo 或 Math Renderer Plus 渲染回复，请先停用它，再启用 Better Paseo Math。
+需要 Paseo 0.14.0 或更高版本（使用侧边对话面板与输入栏集成需要 Paseo 0.16.0 或更高版本），且守护进程所在机器需要 Node.js 22 或更高版本及 npm。请保持插件的 Markdown 渲染开启，并同时只启用一个助手回复渲染插件：启用 Better Paseo Math 前请先停用原版 Better Paseo 或 Math Renderer Plus；若此前单独安装了 Better Sidechat，也请先停用以免出现重复的 `/btw` 命令和侧边栏面板。
 
 ## 数据访问
 
-公式文本会发送给已连接的 Paseo 守护进程，由内置 MathJax 在该机器上渲染，无需外部公式服务。时间线和任务看板会使用当前显示的对话、工具结果、Agent 元数据和外观设置。语法高亮和文件预览可通过守护进程处理，桌面端支持打开文件或在文件管理器中定位文件。
+公式文本会发送给已连接的 Paseo 守护进程，由内置 MathJax 在本地渲染，无需外部公式服务。插件会读取当前显示的对话、工具结果、Agent 元数据及外观设置，用于时间线、任务看板与侧边对话。语法高亮和文件预览由守护进程处理，桌面端支持打开文件或在文件管理器中定位文件。
 
-启用模型生成任务标题后，对话片段和配置的提示词会经选定的模型服务商发送给辅助 Agent。插件会在守护进程端记录近期回合的耗时、Token 用量和错误，并可从服务商会话文件读取 Token 计数。插件可查询 npm 获取服务商 CLI 的版本信息。部分看板操作会调用 Paseo CLI 或使用本地守护进程连接。
+消息编辑回退、创建对话副本以及侧边对话的附件、文件补全、命令列表和外部时间线插件发现会通过本地连接访问 Paseo 守护进程或调用 Paseo CLI。侧边对话附加主会话上下文或引用选区时，相关片段会发送给你在侧边对话中选定的模型服务商。启用 AI 推荐追问或模型生成任务标题时，对话片段会经选定的模型服务商发送给辅助 Agent（AI 推荐追问会在隔离的临时目录中运行）。插件会在守护进程的插件数据目录中保存侧边对话线程索引、近期回合耗时、Token 用量和错误记录，首次读取时会自动迁移旧版独立 Sidechat 的线程列表，并可从服务商会话文件读取 Token 计数及查询 npm 获取服务商 CLI 版本信息。

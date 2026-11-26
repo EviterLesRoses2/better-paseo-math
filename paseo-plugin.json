@@ -1,7 +1,7 @@
 {
   "id": "better-paseo-math",
   "name": "Better Paseo Math",
-  "description": "Keeps Better Paseo’s Tasks board and adds inline, display, and table-cell LaTeX rendering to assistant replies.",
+  "description": "Better Paseo timeline and Tasks board with MathJax LaTeX and table line breaks, message edit/rewind and conversation forking, and unified Sidechat.",
   "media": [
     "assets/marketplace/formula-rendering.png"
   ],
@@ -29,7 +29,7 @@
   "translations": {
     "zh-CN": {
       "name": "Better Paseo Math",
-      "description": "保留 Better Paseo 的任务看板，并为助手回复增加行内、独立和表格内 LaTeX 公式渲染。"
+      "description": "保留 Better Paseo 的任务看板与紧凑时间线，支持 LaTeX 公式与表格换行渲染、已发消息重新编辑覆盖、任意节点创建对话副本，以及统一风格的侧边对话。"
     }
   }
 }
