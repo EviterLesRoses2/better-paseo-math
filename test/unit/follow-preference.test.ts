@@ -19,11 +19,11 @@ it("registers again when its preference changes, and only then", () => {
   expect(log).toEqual(["add 1"]);
 
   // The daemon's settings arriving after the first items were projected.
-  applyStoredPreferences({ ...storedPart(getEnhancerPreferences()), enhancedUserBubble: true });
+  applyStoredPreferences({ ...storedPart(getEnhancerPreferences()), enhancedUserBubble: false });
   expect(log).toEqual(["add 1", "remove 1", "add 2"]);
 
   stop();
   expect(log).toEqual(["add 1", "remove 1", "add 2", "remove 2"]);
-  updateEnhancerPreferences({ enhancedUserBubble: false });
+  updateEnhancerPreferences({ enhancedUserBubble: true });
   expect(log).toHaveLength(4);
 });

@@ -16,6 +16,8 @@ import { TaskList, TaskListPanel, useTaskListPanel } from "./components/task-lis
 import { TaskActivityRow } from "./components/task-activity-row";
 import { HOST_ITEM_GAP, deriveTodoActivities, todoTaskStatus, useLatestTodoItems, useMatchingTodo, useTodoTimeline, type EmptyGapTakeBack, type TodoTask } from "./state/todo-timeline";
 import { grokTodoItems } from "./tools/activity";
+import { ConversationDialog, type ConversationDialogKind } from "./components/conversation-actions";
+import { ToolbarButton } from "./ui/toolbar-button";
 import { UserMessage } from "./components/user-message";
 import { itemRootFont } from "./components/host-font-escape";
 import { pluginRoot } from "./components/focus-ring";
@@ -560,6 +562,8 @@ function LiveAssistantMessageRenderer({
 }: PluginTimelineItemProps<LiveAssistantPayload>) {
   const messageText = item.data.messageText ?? item.data.text;
   const streaming = item.data.phase === "streaming";
+  const [forkOpen, setForkOpen] = useState(false);
+  const openFork = useCallback(() => setForkOpen(true), []);
   const probe = probeCard(
     "assistant",
     textItemKey("assistant", item.data.text),
@@ -644,8 +648,12 @@ function LiveAssistantMessageRenderer({
           tokens={tokens}
           compact={layout.compact}
           streaming={streaming}
+          onFork={openFork}
         />
       ) : null}
+      {forkOpen ? <ConversationDialog kind="fork" agentId={agentId} tokens={tokens}
+        node={{ nodeKind: "assistant", nodeText: messageText, messageId: item.data.messageId, timestampMs: timestamp.getTime() }}
+        close={() => setForkOpen(false)} /> : null}
       <DetailsHostSlot agentId={agentId} itemKey={hostSlotKey} tokens={tokens} compact={layout.compact} />
       <TimelineTailHub
         agentId={agentId}
@@ -670,6 +678,7 @@ const TurnFooter = memo(function TurnFooter({
   tokens,
   compact,
   streaming,
+  onFork,
 }: {
   agentId: string;
   text: string;
@@ -677,16 +686,18 @@ const TurnFooter = memo(function TurnFooter({
   tokens: ReturnType<typeof useThemeTokens>;
   compact: boolean;
   streaming: boolean;
+  onFork: () => void;
 }) {
   const running = useAgent(agentId, (agent) => agent.status === "running");
   const paseo = usePaseo();
   const timing = useTurnFooter(paseo, agentId, at.getTime(), text, running, streaming);
-  if (!timing) return null;
+  if (streaming) return null;
+  if (!timing) return <ToolbarButton icon="GitBranch" label="Fork from here" tokens={tokens} onPress={onFork} />;
   return <CompletedReplyFooter agentId={agentId} text={text} at={new Date(timing.completedAt)} tokens={tokens}
-    compact={compact} durationMs={timing.durationMs} startedAt={timing.startedAt} usage={timing.usage} />;
+    compact={compact} durationMs={timing.durationMs} startedAt={timing.startedAt} usage={timing.usage} onFork={onFork} />;
 });
 
-function CompletedReplyFooter({ agentId, text, at, tokens, compact, durationMs, startedAt, usage }: {
+function CompletedReplyFooter({ agentId, text, at, tokens, compact, durationMs, startedAt, usage, onFork }: {
   agentId: string;
   text: string;
   at: Date;
@@ -695,6 +706,7 @@ function CompletedReplyFooter({ agentId, text, at, tokens, compact, durationMs, 
   durationMs: number | null;
   startedAt: number | null;
   usage?: TurnUsage;
+  onFork: () => void;
 }) {
   const agentName = useAgent(agentId, (agent) => agent.provider);
   const modelId = useAgent(agentId, (agent) => agent.model);
@@ -704,7 +716,7 @@ function CompletedReplyFooter({ agentId, text, at, tokens, compact, durationMs, 
   const model = useFooterModel(paseo, agentName, modelId, thinkingOptionId, cwd);
   return <AssistantFooter text={text} at={at} agentName={agentName} modelId={modelId} modelName={model.modelName}
     thinkingLabel={model.thinkingLabel}
-    durationMs={durationMs} startedAt={startedAt} usage={usage} tokens={tokens} compact={compact} />;
+    durationMs={durationMs} startedAt={startedAt} usage={usage} tokens={tokens} compact={compact} onFork={onFork} />;
 }
 
 /**
@@ -830,6 +842,7 @@ function LiveUserMessageRendererBody({
   agentId,
   timestamp,
 }: PluginTimelineItemProps<LiveUserMessagePayload>) {
+  const [dialog, setDialog] = useState<ConversationDialogKind | null>(null);
   const probe = probeCard("user_message", item.data.messageId ?? String(timestamp.getTime()));
   const rootRef = useRef<View>(null);
   useTimelineEntry(agentId, timestamp.getTime(), "prompt", `prompt:${item.data.messageId ?? item.data.text}`, rootRef);
@@ -870,6 +883,8 @@ function LiveUserMessageRendererBody({
           timestamp={timestamp}
           tokens={tokens}
           compact={layout.compact}
+          onEdit={() => setDialog("edit")}
+          onFork={() => setDialog("fork")}
           actions={
             HOST_REWIND_MENU ? (
               <HOST_REWIND_MENU
@@ -887,6 +902,9 @@ function LiveUserMessageRendererBody({
           }
         />
       )}
+      {dialog ? <ConversationDialog kind={dialog} agentId={agentId} tokens={tokens}
+        node={{ nodeKind: "user", nodeText: item.data.text, messageId: item.data.messageId,
+          clientMessageId: item.data.clientMessageId, timestampMs: atMs }} close={() => setDialog(null)} /> : null}
       <DetailsHostSlot agentId={agentId} itemKey={hostSlotKey} tokens={tokens} compact={layout.compact} />
     </View>
   );

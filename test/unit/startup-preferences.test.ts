@@ -163,9 +163,9 @@ describe("preferences read while the plugin loads", () => {
     const [again] = plugin.active("omp-enhanced-assistant");
     expect(again).not.toBe(assistant);
     expect(again!.transform(reply)).toBeUndefined();
-    // The prompt bubble stays opt-in: the record did not turn it on.
-    expect(preferences.DEFAULT_PREFERENCES.enhancedUserBubble).toBe(false);
-    expect(plugin.active("omp-enhanced-user-message")[0]!.transform(prompt)).toBeUndefined();
+    // The record leaves the enhanced prompt bubble enabled by default.
+    expect(preferences.DEFAULT_PREFERENCES.enhancedUserBubble).toBe(true);
+    expect(plugin.active("omp-enhanced-user-message")[0]!.transform(prompt)).toBeDefined();
 
     cleanup();
     expect(plugin.registrations.every((entry) => entry.removed)).toBe(true);

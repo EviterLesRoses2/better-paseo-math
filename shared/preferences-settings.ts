@@ -159,7 +159,7 @@ export const preferencesSchema = z.preprocess((raw) => migrateHoverDelay(migrate
   previewStripes: flag(true),
   chatEnabled: flag(true),
   timelineLevel: z.enum(TIMELINE_LEVELS).catch("standard"),
-  enhancedUserBubble: flag(false),
+  enhancedUserBubble: flag(true),
   selectionActions: flag(true),
   assistantMarkdown: flag(true),
   liveUiReplies: flag(false),

@@ -330,9 +330,9 @@ describe("daemon-backed store (S5 fix round 1)", () => {
 });
 
 describe("prompt bubble default", () => {
-  it("leaves prompts to Paseo's bubble, which keeps rewind and images", () => {
-    expect(DEFAULT_PREFERENCES.enhancedUserBubble).toBe(false);
-    expect(parsePreferences({}).enhancedUserBubble).toBe(false);
-    expect(parsePreferences({ enhancedUserBubble: true }).enhancedUserBubble).toBe(true);
+  it("enables the enhanced prompt bubble unless explicitly disabled", () => {
+    expect(DEFAULT_PREFERENCES.enhancedUserBubble).toBe(true);
+    expect(parsePreferences({}).enhancedUserBubble).toBe(true);
+    expect(parsePreferences({ enhancedUserBubble: false }).enhancedUserBubble).toBe(false);
   });
 });

@@ -22,6 +22,10 @@ import { externalHistoryRows } from "./client/external-history";
 import { embeddedFontsRpc } from "./shared/font-rpc";
 import { markBitmapsRpc } from "./shared/mark-rpc";
 import { setMarkLoader } from "./client/components/marks";
+import { forkOriginSchema } from "./shared/conversation-actions-rpc";
+import { ForkOriginCard } from "./client/components/fork-origin-card";
+import { installComposerBridge } from "./client/state/composer-bridge";
+import { contributeConversationCommands } from "./client/conversation-commands";
 import { contributeTasks } from "./client/tasks/contribute";
 import {
   LiveToolCallRenderer,
@@ -56,6 +60,12 @@ export default function contribute(client: PluginClientContext) {
   const addChatTransformer = <ItemType extends PluginTimelineTransformerContribution["query"]["itemType"]>(
     contribution: PluginTimelineTransformerContribution<ItemType>,
   ) => followChat(() => client.addTimelineTransformer(contribution));
+
+  const removeComposerBridge = installComposerBridge(client);
+  const removeConversationCommands = followChat(() => contributeConversationCommands(client));
+  const removeForkOrigin = client.addTimelineRenderer({
+    kind: "omp-fork-origin", version: 1, schema: forkOriginSchema, Component: ForkOriginCard,
+  });
 
   // The embedded Inter faces are read from the daemon and installed on first
   // use by a reader who picks them (`ensureEmbeddedFonts`); unloading
@@ -247,7 +257,7 @@ export default function contribute(client: PluginClientContext) {
           if (!getEnhancerPreferences().assistantMarkdown) return undefined;
           if (!item.text.trim()) return undefined;
           if (getEnhancerPreferences().liveUiReplies && hasUiFence(item.text, phase)) return undefined;
-          return { items: externalHistoryRows(item.text, phase, item.messageId) ?? assistantRows(item.text, phase) };
+          return { items: externalHistoryRows(item.text, phase, item.messageId) ?? assistantRows(item.text, phase, item.messageId) };
         },
       }),
   );
@@ -257,7 +267,7 @@ export default function contribute(client: PluginClientContext) {
     version: 1,
     schema: z.object({ text: z.string(), phase: z.string().optional(),
       blockIndex: z.number().int().nonnegative().optional(), messageText: z.string().optional(),
-      listContinuation: z.boolean().optional() }),
+      listContinuation: z.boolean().optional(), messageId: z.string().optional() }),
     Component: LiveAssistantRenderer,
   });
 
@@ -322,6 +332,9 @@ export default function contribute(client: PluginClientContext) {
     stopPreferenceRead();
     stopPreferenceWatch();
     removeTasks();
+    removeConversationCommands();
+    removeComposerBridge();
+    removeForkOrigin();
     removeSettings();
     removeUpdateIndicator?.();
     removePerfCommand();
