@@ -47,11 +47,18 @@ function mathStart(src: string): number | undefined {
   return match[0].startsWith("\n") ? match.index + 1 : match.index;
 }
 
+const HTML_LINE_BREAK = /^<br\s*\/?>$/i;
+
+/** Bare HTML break tags in inline markup. Raw HTML bodies keep their source. */
+export function isInlineHtmlLineBreak(token: { raw: string; inRawBlock?: boolean }): boolean {
+  return !token.inRawBlock && HTML_LINE_BREAK.test(token.raw);
+}
+
 /**
  * The options every lexer in the engine uses. Extensions are given in the
  * shape `marked.use` would build, so no global marked instance is touched.
  */
-export const LEXER_OPTIONS: MarkedOptions = withMathTables({
+export const LEXER_OPTIONS: MarkedOptions = withTokenizerOverrides({
   gfm: true,
   extensions: {
     renderers: {},
@@ -61,9 +68,16 @@ export const LEXER_OPTIONS: MarkedOptions = withMathTables({
   },
 });
 
-function withMathTables(options: MarkedOptions): MarkedOptions {
+function withTokenizerOverrides(options: MarkedOptions): MarkedOptions {
   // Marked initializes its default tokenizer on the options on construction.
   const tokenizer = new Lexer(options).options.tokenizer!;
+  const markedHtml = tokenizer.html;
+  tokenizer.html = function (src) {
+    const token = markedHtml.call(this, src);
+    // A standalone break must not turn the following prose into an HTML block.
+    if (token && HTML_LINE_BREAK.test(token.raw.split("\n", 1)[0]!.trim())) return undefined;
+    return token;
+  };
   const markedTable = tokenizer.table;
   tokenizer.table = function (src) {
     const candidate = this.rules.block.table.exec(src);
@@ -95,6 +109,18 @@ const MATH_LEXER_OPTIONS: MarkedOptions = {
 /** Block-level tokens only: what the splitter needs, without inline work. */
 export function lexBlockTokens(markdown: string): Token[] {
   return new Lexer(LEXER_OPTIONS).blockTokens(markdown);
+}
+
+function lexWithInline(raw: string, options: MarkedOptions): Token[] {
+  const lexer = new Lexer(options);
+  const markedInline = lexer.inlineTokens;
+  lexer.inlineTokens = function (src, tokens) {
+    // Marked passes a token array for queued runs, including each table cell.
+    // An unclosed raw tag in one run must not affect the next run.
+    if (tokens !== undefined) this.state.inRawBlock = false;
+    return markedInline.call(this, src, tokens);
+  };
+  return lexer.lex(raw);
 }
 
 const LRU_LIMIT = 500;
@@ -130,7 +156,7 @@ export function lexBlock(raw: string, open = false, inlineMath = false): Token[]
   if (open) {
     const tail = tails.get(cacheKey);
     if (tail !== undefined) return tail;
-    const tokens: Token[] = Lexer.lex(raw, options);
+    const tokens = lexWithInline(raw, options);
     tails.set(cacheKey, tokens);
     if (tails.size > TAIL_LIMIT) {
       const oldest = tails.keys().next().value;
@@ -138,7 +164,7 @@ export function lexBlock(raw: string, open = false, inlineMath = false): Token[]
     }
     return tokens;
   }
-  const tokens: Token[] = Lexer.lex(raw, options);
+  const tokens = lexWithInline(raw, options);
   lru.set(cacheKey, tokens);
   while (lru.size > LRU_LIMIT) {
     const oldest = lru.keys().next().value;

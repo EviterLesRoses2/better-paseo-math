@@ -2,7 +2,7 @@ import { INCOMPLETE_IMAGE_PLACEHOLDER } from "remend";
 import type { Token, Tokens } from "../../../vendor/marked";
 import { decodeEntities, isPathLike, softBreaks } from "./text";
 import { localImagePath, localPath } from "./local-path";
-import { lexBlock } from "../lex";
+import { isInlineHtmlLineBreak, lexBlock } from "../lex";
 import { hasInlineMath } from "../inline-math-token";
 
 export type ProseLink = { kind: "path" | "file" | "url"; target: string };
@@ -32,7 +32,8 @@ function proseWriter() {
       case "text": return token.tokens ? walk(token.tokens) : escapeProse(softBreaks(decodeEntities(token.text)));
       case "escape": return escapeProse(token.text);
       case "br": return "\n";
-      case "html": return escapeProse(token.raw);
+      // Encode this newline as text so consecutive breaks stay inside the inline run.
+      case "html": return isInlineHtmlLineBreak(token) ? "&#10;" : escapeProse(token.raw);
       case "codespan": return isPathLike(token.text)
         ? link(code(token.text), "path", token.text) : code(token.text);
       case "strong": return `**${walk(token.tokens)}**`;
