@@ -1,6 +1,6 @@
 import { SIDECHAT_LABELS } from "../../shared/sidechat/identity";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { execCommand, type PluginServerContext } from "@getpaseo/plugin/server";
 import type { ProviderSnapshotEntry } from "@getpaseo/protocol/agent-types";
@@ -427,7 +427,6 @@ export function registerSidechatServer(server: PluginServerContext) {
   let cachedUsageCards: UsageReportCardData[] | null = null;
   type CachedStarterResult = { starters: StarterPromptItem[]; modelId: string | null };
   let closing = false;
-  const starterDirectories = new Set<string>();
   const aiStarterCache = new Map<string, CachedStarterResult>();
   const inFlightAiStarters = new Map<string, Promise<CachedStarterResult | null>>();
 
@@ -908,7 +907,8 @@ export function registerSidechatServer(server: PluginServerContext) {
           limit: 120,
         });
 
-        if (timeline.error || !timeline.agent) {
+        const mainAgent = timeline.agent;
+        if (timeline.error || !mainAgent) {
           return {
             starters: buildDefaultStarterPrompts(locale),
             source: "default",
@@ -936,7 +936,7 @@ export function registerSidechatServer(server: PluginServerContext) {
 
         const fingerprint = computeMainStarterFingerprint(
           agentId,
-          timeline.agent.status,
+          mainAgent.status,
           timeline.entries,
         );
         const cacheKey = `${fingerprint}:${starterModelMode}`;
@@ -956,8 +956,8 @@ export function registerSidechatServer(server: PluginServerContext) {
         }
 
         const contextual = buildContextualStarterPrompts({
-          title: timeline.agent.title,
-          status: timeline.agent.status,
+          title: mainAgent.title,
+          status: mainAgent.status,
           entries: timeline.entries,
           fallbackLocale: locale,
         });
@@ -985,13 +985,15 @@ export function registerSidechatServer(server: PluginServerContext) {
         const effectiveStarterModelMode: Exclude<StarterModelMode, "off"> = starterModelMode;
 
         const generateWithModel = async (): Promise<CachedStarterResult | null> => {
-          const effectiveCwd = timeline.agent!.cwd || homedir();
-          const mainWorkspaceId = timeline.agent!.workspaceId ?? null;
+          const mainWorkspaceId = mainAgent.workspaceId || workspaceId;
+          if (!mainWorkspaceId || closing) return null;
+
+          const effectiveCwd = mainAgent.cwd || homedir();
           const providerEntries = await loadProviderEntries(paseo, effectiveCwd);
           const picked = pickStarterModel({
             entries: providerEntries,
-            preferredProvider: timeline.agent!.provider,
-            preferredModel: timeline.agent!.model,
+            preferredProvider: mainAgent.provider,
+            preferredModel: mainAgent.model,
             starterModelMode: effectiveStarterModelMode,
           });
           if (!picked) return null;
@@ -1003,9 +1005,9 @@ export function registerSidechatServer(server: PluginServerContext) {
           if (!safety.allowed) return null;
 
           const starterDigest = buildRecencyWeightedStarterDigest({
-            title: timeline.agent!.title,
+            title: mainAgent.title,
             cwd: effectiveCwd,
-            status: timeline.agent!.status,
+            status: mainAgent.status,
             entries: timeline.entries,
           });
           const { languageTag } = detectConversationLanguage(timeline.entries, locale);
@@ -1015,19 +1017,13 @@ export function registerSidechatServer(server: PluginServerContext) {
             languageTag,
           });
 
-          let isolatedCwd: string | null = null;
           let tempHandle: Awaited<ReturnType<ServerPaseoApi["agents"]["create"]>> | null = null;
-          let tempWorkspaceId: string | null = null;
-          let completedCleanly = false;
 
           try {
             if (closing) return null;
-            isolatedCwd = mkdtempSync(join(tmpdir(), "paseo-sidechat-starters-"));
-            starterDirectories.add(isolatedCwd);
-            tempHandle = await paseo.agents.create({
-              cwd: isolatedCwd,
+            // Explicit workspace placement avoids registering a project for a helper directory.
+            tempHandle = await paseo.workspaces.ref(mainWorkspaceId).agents.create({
               background: true,
-              autoArchive: true,
               title: "Sidechat Follow-up Suggestions",
               labels: {
                 ...SIDECHAT_LABELS,
@@ -1044,10 +1040,7 @@ export function registerSidechatServer(server: PluginServerContext) {
               prompt,
             });
 
-            tempWorkspaceId = tempHandle.current()?.workspaceId ?? tempHandle.workspaceId ?? null;
             const finished = await tempHandle.waitForFinish(30_000);
-            completedCleanly =
-              finished.status === "idle" || Boolean(finished.final?.archivedAt);
             let rawText = finished.lastMessage?.trim() ?? "";
 
             if (!rawText) {
@@ -1083,32 +1076,8 @@ export function registerSidechatServer(server: PluginServerContext) {
           } catch {
             return null;
           } finally {
-            if (tempHandle) {
-              const finalWsId =
-                tempHandle.current()?.workspaceId ?? tempHandle.workspaceId ?? tempWorkspaceId;
-              // When `autoArchive: true` finishes normally (`status === "idle"`), Paseo already
-              // archived the ephemeral agent; only call `archive()` explicitly on timeout/error.
-              if (!completedCleanly && !tempHandle.current()?.archivedAt) {
-                await tempHandle.archive().catch(() => {});
-              }
-              if (
-                finalWsId &&
-                finalWsId !== workspaceId &&
-                finalWsId !== mainWorkspaceId
-              ) {
-                await paseo.workspaces
-                  .ref(finalWsId)
-                  .archive()
-                  .catch(() => {});
-              }
-            }
-            if (isolatedCwd) {
-              try {
-                rmSync(isolatedCwd, { recursive: true, force: true });
-                starterDirectories.delete(isolatedCwd);
-              } catch {
-                // Best-effort cleanup of the empty temporary directory.
-              }
+            if (tempHandle && !tempHandle.current()?.archivedAt) {
+              await tempHandle.archive().catch(() => {});
             }
           }
         };
@@ -1163,13 +1132,5 @@ export function registerSidechatServer(server: PluginServerContext) {
   return async () => {
     closing = true;
     await attachmentService.close();
-    for (const directory of starterDirectories) {
-      try {
-        rmSync(directory, { recursive: true, force: true });
-      } catch (error) {
-        console.warn("Could not remove Sidechat starter directory", error);
-      }
-    }
-    starterDirectories.clear();
   };
 }

@@ -1087,9 +1087,8 @@ export function shouldUseAiStarters(input: {
 
 /**
  * Resolves tool/mode guardrails for the ephemeral AI follow-up helper.
- * Runs in an isolated empty temporary directory with `mcpServers: {}`; on Claude it also
- * explicitly disables built-in tools (`--tools ""` + `--strict-mcp-config`), and on other
- * providers it prefers `read-only` / `plan` when available.
+ * The helper runs in the main workspace. Claude disables its tools, Codex can
+ * use an explicit read-only sandbox, and other providers need a restrictive mode.
  */
 export function resolveStarterHelperSafetyConfig(input: {
   provider: string;
@@ -1114,10 +1113,16 @@ export function resolveStarterHelperSafetyConfig(input: {
     };
   }
 
-  return {
-    allowed: true,
-    ...(restrictiveModeId ? { modeId: restrictiveModeId } : {}),
-  };
+  if (restrictiveModeId) return { allowed: true, modeId: restrictiveModeId };
+
+  if (provider === "codex") {
+    return {
+      allowed: true,
+      options: { sandbox_mode: "read-only", approval_policy: "never" },
+    };
+  }
+
+  return { allowed: false };
 }
 
 export function buildAiStarterGenerationPrompt(input: {

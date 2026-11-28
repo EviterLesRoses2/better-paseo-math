@@ -383,7 +383,7 @@ it("shouldUseAiStarters never contacts an AI provider when starterModelMode is o
   expect(shouldUseAiStarters({ starterModelMode: "inherit", requestedMode: "ai" })).toBe(true);
 });
 
-it("resolveStarterHelperSafetyConfig disables built-in Claude tools and prefers restrictive modes across providers", () => {
+it("resolveStarterHelperSafetyConfig requires restricted access for helpers in the main workspace", () => {
   // Claude: explicitly disables all built-in tools and MCP servers, and uses plan when available.
   const claudeWithPlan = resolveStarterHelperSafetyConfig({
     provider: "claude",
@@ -415,7 +415,7 @@ it("resolveStarterHelperSafetyConfig disables built-in Claude tools and prefers 
     },
   });
 
-  // Non-Claude providers prefer read-only / plan modes when available and remain enabled.
+  // Non-Claude providers prefer read-only / plan modes when available.
   expect(resolveStarterHelperSafetyConfig({
       provider: "codex",
       availableModes: [{ id: "default" }, { id: "read-only" }, { id: "full-access" }],
@@ -433,9 +433,12 @@ it("resolveStarterHelperSafetyConfig disables built-in Claude tools and prefers 
   expect(resolveStarterHelperSafetyConfig({
       provider: "codex",
       availableModes: [{ id: "default" }, { id: "auto" }, { id: "full-access" }],
-    })).toStrictEqual({ allowed: true });
+    })).toStrictEqual({
+      allowed: true,
+      options: { sandbox_mode: "read-only", approval_policy: "never" },
+    });
   expect(resolveStarterHelperSafetyConfig({
       provider: "custom-acp",
       availableModes: [],
-    })).toStrictEqual({ allowed: true });
+    })).toStrictEqual({ allowed: false });
 });
