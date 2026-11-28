@@ -15,10 +15,10 @@ Main-chat prompts with attachments or incomplete attachment information use Pase
 
 ## Installation
 
-The daemon host needs Paseo 0.14.0 or later (0.16.0+ for Sidechat panels and composer integration), Node.js 22 or later, and npm. To install release `v1.1.2` directly from GitHub:
+The daemon host needs Paseo 0.14.0 or later (0.16.0+ for Sidechat panels and composer integration), Node.js 22 or later, and npm. To install release `v1.1.3` directly from GitHub:
 
 ```sh
-paseo plugin add git:EviterLesRoses2/better-paseo-math --ref v1.1.2
+paseo plugin add git:EviterLesRoses2/better-paseo-math --ref v1.1.3
 ```
 
 Keep the plugin's Markdown rendering enabled. Disable Better Paseo, Math Renderer Plus, or standalone Better Sidechat before enabling this plugin to avoid conflicting reply renderers or duplicate `/btw` commands.

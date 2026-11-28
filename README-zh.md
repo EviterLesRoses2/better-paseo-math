@@ -15,10 +15,10 @@ Better Paseo Math 是基于 [RoundRedDot 的 Better Paseo](https://github.com/Ro
 
 ## 安装
 
-守护进程所在机器需要 Paseo 0.14.0 或更高版本（侧边对话面板与输入栏集成需 0.16.0+）、Node.js 22 或更高版本及 npm。可从 GitHub 安装 `v1.1.2`：
+守护进程所在机器需要 Paseo 0.14.0 或更高版本（侧边对话面板与输入栏集成需 0.16.0+）、Node.js 22 或更高版本及 npm。可从 GitHub 安装 `v1.1.3`：
 
 ```sh
-paseo plugin add git:EviterLesRoses2/better-paseo-math --ref v1.1.2
+paseo plugin add git:EviterLesRoses2/better-paseo-math --ref v1.1.3
 ```
 
 请保持插件的 Markdown 渲染开启。启用本插件前，请先停用原版 Better Paseo、Math Renderer Plus 以及独立的 Better Sidechat，以避免助手回复渲染器或 `/btw` 命令冲突。
